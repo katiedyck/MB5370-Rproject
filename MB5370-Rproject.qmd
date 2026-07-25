@@ -56,7 +56,7 @@ Packages necessary for my analysis are `tidyverse`, `RColorBrewer`, `sf`, `rnatu
 ```{r load packages, echo=FALSE, include=FALSE}
 library(tidyverse)
 library(sf)
-library(RColorBrewer)
+library(RColorBrewer)   # high-contrast colour palette for mapping
 library(rnaturalearth)   # basemap
 library(rnaturalearthdata)
 ```
@@ -126,10 +126,14 @@ unique(turtles_points$notes)  # will remove this column because it is NA for all
 Need to change the `date_time` column from character to POSIXct type.
 
 ```{r change date_time to factored}
-turtles_points <- turtles_points %>%
-    mutate(date_time = as_datetime(date_time))
-```
+head(turtles_points$date_time)
 
+turtles_points <- turtles_points %>%
+    mutate(date_time = ymd_hm(date_time))
+
+head(turtles_points$date_time)
+str(turtles_points$date_time)
+```
 
 ```{r filter points dataset}
 # Remove unnecessary columns from `turtles_points`
@@ -142,6 +146,18 @@ glimpse(turtles_points_filtered)
 turtles_points_filtered <- turtles_points_filtered %>%
     rename(turtle_id = series_id) %>%
     relocate(turtle_id, .before = latitude) # move the turtle_id column to the front of the dataset
+
+glimpse(turtles_points_filtered)
+```
+
+```{r check points date_time structure}
+# check that the structure of date_time column in turtles_points_filtered is consistent
+turtles_points_filtered %>%
+    group_by(turtle_id) %>%
+    summarise(
+        min_date = min(date_time, na.rm = TRUE),
+        max_date = max(date_time, na.rm = TRUE)
+    )
 ```
 
 * The `lprecision` and `tprecision` columns refer to the accuracy of the location and time data, respectively. They were added by OBIS-SEAMAP when the data was uploaded. I will keep these columns for now, but may remove them later if they are not relevant to my analysis.
@@ -173,15 +189,18 @@ The `turtles_points` dataset contains more detailed information on each turtle's
 
 ```{r prep data for mapping}
 turtles <- turtles_points_filtered %>%
-  mutate(turtle_id = factor(turtle_id)) %>%     # discrete, not numeric, for color mapping
-  arrange(turtle_id, date_time) %>%
-  filter(!is.na(longitude), !is.na(latitude))   # exclude any columns with missing coordinates
+    mutate(
+        turtle_id = factor(turtle_id)   # drop any unused levels
+    ) %>%
+    arrange(turtle_id, date_time) %>%
+    filter(!is.na(longitude), !is.na(latitude), !is.na(date_time))
+
+# should be 0 — that means all date/time formats have been accounted for 
+sum(is.na(turtles$date_time))
  
 # check: how many turtles, how many fixes each
 turtles %>% count(turtle_id, sort = TRUE)
 ```
-
-**INCLUDE THIS TABLE IN PRESENTATION!!!**
 
 ## Convert points to sf, then build one linestring per turtle
 
@@ -192,9 +211,9 @@ First, we need to convert points to a `sf` object, then build one linestring per
 turtle_pts <- st_as_sf(turtles, coords = c("longitude", "latitude"), crs = 4326)
  
 turtle_tracks <- turtle_pts %>%
-  group_by(turtle_id) %>%
-  summarise(do_union = FALSE) %>%   # do_union=FALSE preserves point order
-  st_cast("LINESTRING")
+    group_by(turtle_id) %>%
+    summarise(do_union = FALSE) %>%   # do_union=FALSE preserves point order
+    st_cast("LINESTRING")
 ```
 
 ```{r set levels and create colour palette}
@@ -212,6 +231,7 @@ Create a basemap of Central America to plot the turtle locations and tracks on:
 ```{r create basemap}
 # Basemap of Central America
 land <- ne_countries(scale = "medium", returnclass = "sf")  # get polygons of countries; 'sf' = simple feature
+
 bbox <- st_bbox(turtle_pts)
 pad <- 1    # degree of padding around the tracks
 ```
@@ -245,6 +265,10 @@ p_all
 # ggsave("turtle_tracks_all.png", p_all, width = 8, height = 10, dpi = 300)
 ```
 
+For turtle ID 107822, some of the tracking points are on land, far away from the shore, which is impossible. This is likely due to the fact that the tracking points are not accurate, and the turtle was likely in the water at the time. I will find these points in the  dataset and disclude them from my analysis.
+
+
+
 ```{r facet_wrap map}
 p_facet <- ggplot() +
     geom_sf(data = land, fill = "grey90", color = "grey60") +
@@ -267,49 +291,48 @@ p_facet
 ```{r separate map for each turtle ID}
 turtle_plots <- map(turtle_ids, function(id) {
  
-  pts_id <- turtle_pts %>%
-    filter(turtle_id == id)
+    pts_id <- turtle_pts %>%
+        filter(turtle_id == id)
  
-  track_id <- pts_id %>%
-    summarise(do_union = FALSE) %>%
-    st_cast("LINESTRING")
+    track_id <- pts_id %>%
+        summarise(do_union = FALSE) %>%
+        st_cast("LINESTRING")
  
-  bbox_id <- st_bbox(pts_id)
+    bbox_id <- st_bbox(pts_id)
  
-  date_range <- range(pts_id$date_time, na.rm = TRUE)
-  
-  date_label <- paste(
-    format(date_range[1], "%d %b %Y"), "–", format(date_range[2], "%d %b %Y")
-  )
+    date_range <- range(pts_id$date_time, na.rm = TRUE)
+    date_label <- paste(
+        format(date_range[1], "%d %b %Y"), "–", format(date_range[2], "%d %b %Y")
+    )
  
-  this_color <- turtle_palette[[id]]
+    this_color <- turtle_palette[[id]]
  
-  ggplot() +
-    geom_sf(data = land, fill = "grey90", color = "grey60") +
-    geom_sf(data = track_id, color = this_color, linewidth = 0.6) +
-    geom_sf(data = pts_id, color = this_color, size = 0.8, alpha = 0.6) +
-    coord_sf(
-      xlim = c(bbox_id["xmin"] - pad, bbox_id["xmax"] + pad),
-      ylim = c(bbox_id["ymin"] - pad, bbox_id["ymax"] + pad)
-    ) +
-    labs(
-      title = paste("Turtle", id),
-      subtitle = date_label,
-      x = NULL, y = NULL
-    ) +
-    theme_minimal()
+    ggplot() +
+        geom_sf(data = land, fill = "grey90", color = "grey60") +
+        geom_sf(data = track_id, color = this_color, linewidth = 0.6) +
+        geom_sf(data = pts_id, color = this_color, size = 0.8, alpha = 0.6) +
+        coord_sf(
+            xlim = c(bbox_id["xmin"] - pad, bbox_id["xmax"] + pad),
+            ylim = c(bbox_id["ymin"] - pad, bbox_id["ymax"] + pad)
+        ) +
+        labs(
+            title = paste("Turtle", id),
+            subtitle = date_label,
+            x = NULL, y = NULL
+        ) +
+        theme_minimal()
 })
  
 names(turtle_plots) <- turtle_ids
  
 # display each map (in RStudio's plot pane / rendered document)
 walk(turtle_plots, print)
-
+ 
 # save each map to its own PNG, e.g. turtle_tracks_101010.png, etc.
-# iwalk(turtle_plots, ~ ggsave(
-#   filename = paste0("turtle_tracks_", .y, ".png"),
-#   plot = .x, width = 8, height = 8, dpi = 300
-# ))
+iwalk(turtle_plots, ~ ggsave(
+    filename = paste0("turtle_tracks_", .y, ".png"),
+    plot = .x, width = 8, height = 8, dpi = 300
+))
 ```
 
 ```{r interactive map view}
