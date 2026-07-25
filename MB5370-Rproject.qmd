@@ -1,0 +1,331 @@
+---
+title: "MB5370 R Project"
+author: "Katie Dyck"
+date: "2026-08-13"
+format:
+  html:
+      embed-resources: true
+      code-fold: show
+      code-copy: hover
+      code-block-bg: true
+      code-block-border-left: "grey25"
+      code-overflow: scroll
+      toc: true
+      number-sections: true
+      number-depth: 4
+      toc-location: left
+      toc-expand: 3
+      toc-title: Contents
+      syntax-highlighting: github
+      theme: cosmo
+      title-block-banner: true
+      fig-height: 6
+      fig-width: 10
+      fig-cap-location: bottom
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  include = TRUE,
+  message = FALSE,
+  warning = FALSE)
+```
+
+# Housekeeping
+
+Purge the global environment with the command `rm(list = ls())`.
+
+```{r Clear session environment, echo=FALSE, include=FALSE}
+#| output: false
+
+# Inventory every active object currently residing in session RAM
+objects()
+
+# Purge global environment
+rm(list = ls())
+
+# Confirm that global session memory is now vacant
+objects()
+```
+
+# Load packages
+
+Packages necessary for my analysis are `tidyverse`, `sf`, `rnaturalearth`, and `rnaturalearthdata`. The `sf` package is used for working with spatial data. The `rnaturalearth` and `rnaturalearthdata` packages are used for creating basemaps.
+
+```{r load packages, echo=FALSE, include=FALSE}
+library(tidyverse)
+library(sf)
+library(rnaturalearth)   # basemap
+library(rnaturalearthdata)
+```
+
+# Import data
+
+Datasets were downloaded from the OBIS-SEAMAP database: https://seamap.env.duke.edu/dataset/2385.
+
+There are 2 datasets available: one contains information on the paths each turtle being track travelling throughout the study period (`turtles_lines`), and the other contains information on the locations of each turtle at specific points in time (`turtles_points`).
+
+```{r import data}
+# Import the turtle lines data
+turtles_lines <- read_csv("../../R Project/obis_seamap_dataset_2385_csv_v1.0.0_99185/obis_seamap_dataset_2385_lines.csv")
+glimpse(turtles_lines)
+
+# Import the turtle points data
+turtles_points <- read_csv("../../R Project/obis_seamap_dataset_2385_csv_v1.0.0_99185/obis_seamap_dataset_2385_points.csv")
+glimpse(turtles_points)
+```
+
+# Clean the datasets
+
+## `turtle_lines` dataset
+
+I will first look at some columns I am unsure of to determine if they will be relevant to my analysis.
+
+```{r investigate lines columns, include=FALSE}
+unique(turtles_lines$dataset_id)    # will remove this column because it is the same for all rows
+head(unique(turtles_lines$row_id))    # will remove this column - just a unique identifier for each row
+unique(turtles_lines$series_id) # this is the unique identifier for each of the 9 turtles, so I will keep this column
+unique(turtles_lines$eff_status)    # will remove this column because it is the same for all rows, not sure what it means
+unique(turtles_lines$ds_type)   # will remove this column because it is the same for all rows
+unique(turtles_lines$id_obs)    # just the observer ID number, will remove because irrelevant to my analysis
+```
+
+Now I will remove unnecessary columns from the `turtles_lines` dataset.
+
+```{r filter lines dataset}
+turtles_lines_filtered <- turtles_lines %>% 
+    select(-c(dataset_id, row_id, eff_status, ds_type, id_obs))
+glimpse(turtles_lines_filtered)
+```
+
+I will rename the `series_id` column to `turtle_id` to make it more clear that this is the unique identifier for each turtle.
+
+```{r rename lines series_id column}
+turtles_lines_filtered <- turtles_lines_filtered %>%
+    rename(turtle_id = series_id)
+```
+
+## `turtles_points` dataset
+
+Will look at columns and remove those that are unnecessary as I did for the `turtles_lines` dataset.
+
+```{r investigate points columns, include=FALSE}
+unique(turtles_points$species_name)   # will remove this column because it is the same for all rows
+unique(turtles_points$common_name)  # will remove this column because it is the same for all rows
+unique(turtles_points$scientific_name)  # will keep this column
+unique(turtles_points$itis_tsn)  # will remove this column because it is the same for all rows
+unique(turtles_points$group_size)  # will remove this column because it is the same for all rows
+unique(turtles_points$timezone)  # will remove this column because it is NA for all rows
+unique(turtles_points$ds_type)  # will remove this column because it is NA for all rows
+unique(turtles_points$platform)  # will remove this column because it is NA for all rows
+unique(turtles_points$notes)  # will remove this column because it is NA for all rows
+```
+
+```{r filter points dataset}
+# Remove unnecessary columns from `turtles_points`
+turtles_points_filtered <- turtles_points %>% 
+    select(-c(dataset_id, row_id, species_name, common_name, itis_tsn, group_size, timezone, ds_type, platform, provider, notes))
+glimpse(turtles_points_filtered)
+```
+
+```{r rename points series_id column}
+turtles_points_filtered <- turtles_points_filtered %>%
+    rename(turtle_id = series_id) %>%
+    relocate(turtle_id, .before = latitude) # move the turtle_id column to the front of the dataset
+```
+
+* The `lprecision` and `tprecision` columns refer to the accuracy of the location and time data, respectively. They were added by OBIS-SEAMAP when the data was uploaded. I will keep these columns for now, but may remove them later if they are not relevant to my analysis.
+* The `oceano` column was added by OBIS-SEAMAP; it was not included in the original dataset. It contains satellite-derived environmental data for each turtle location, including sea surface temperature, chlorophyll-a concentration, and sea surface height. I will keep this column for now, but may remove it later if it is not relevant to my analysis.
+
+# What is the difference between the datasets?
+
+The `turtles_lines` dataset contains information on the paths each turtle being tracked travelled throughout the study period, while the `turtles_points` dataset contains information on the locations of each turtle at specific points in time.
+
+The `turtles_lines` dataset is a summary of the `turtles_points` dataset, with each row representing a unique turtle and its path over time.
+
+The `turtles_points` dataset contains more detailed information on each turtle's location at specific points in time.
+
+* Turtle 101010 was tracked from 05-03-2012 to 30-05-2012.
+* Turtle 107822 was tracked from 10-01-2015 to 20-05-2015.
+* Turtle 107833 was tracked from 15-12-2013 to 05-05-2014.
+* Turtle 107844 was tracked from 09-12-2013 to 03-07-2014.
+* Turtle 107893 was tracked from 14-12-2013 to 19-03-2014. 
+* Turtle 107894 was tracked from 14-12-2012 to 14-01-2013.
+* Turtle 107896 was tracked from 09-03-2015 to 30-03-2015. 
+* Turtle 107898 was tracked from 23-01-2014 to 23-03-2014.
+* Turtle 107899 was tracked from 23-01-2014 to 02-05-2014.
+
+** INCLUDE A TABLE OF # OF TRACKING POINTS, START AND END DATES FOR EACH TURTLE IN PRESENTATION **
+
+# Mapping the turtle locations
+
+## Prep the data
+
+```{r prep data for mapping}
+turtles <- turtles_points_filtered %>%
+    mutate(turtle_id = factor(turtle_id)) %>%   # discrete, not numeric, for color mapping
+    arrange(turtle_id, date_time) %>%
+    filter(!is.na(longitude), !is.na(latitude))
+ 
+# quick sanity check: how many turtles, how many fixes each
+turtles %>% 
+    count(turtle_id, sort = TRUE)
+```
+
+## Convert points to sf, then build one linestring per turtle
+
+The `turtles_lines_filtered` dataset contains the start and end locations of each turtle's path. I can create linestrings that connect these start and end locations to visualize the paths of the turtles.
+
+First, we need to convert points to a `sf` object, then build one linestring per turtle from the start and end points of each segment.
+
+```{r convert points and build linestring}
+turtle_pts <- st_as_sf(turtles, coords = c("longitude", "latitude"), crs = 4326)
+ 
+turtle_tracks <- turtle_pts %>%
+  group_by(turtle_id) %>%
+  summarise(do_union = FALSE) %>%   # do_union=FALSE preserves point order
+  st_cast("LINESTRING")
+```
+
+## Create basemap
+
+Create a basemap of Central America to plot the turtle locations and tracks on:
+
+```{r create basemap}
+# Basemap of Central America
+land <- ne_countries(scale = "medium", returnclass = "sf")
+bbox <- st_bbox(turtle_pts)
+pad <- 1    # degree of padding around the tracks
+```
+
+## Build maps
+
+```{r map for each turtle ID}
+# Turtle ID 101010
+p_101010 <- ggplot() +
+  geom_sf(data = land, fill = "grey90", color = "grey60") +
+  geom_sf(data = turtle_tracks %>% filter(turtle_id == "101010"), color = "red", linewidth = 0.6) +
+  geom_sf(data = turtle_pts %>% filter(turtle_id == "101010"), size = 0.4, alpha = 0.5) +
+  coord_sf(
+    xlim = c(bbox["xmin"] - pad, bbox["xmax"] + pad),
+    ylim = c(bbox["ymin"] - pad, bbox["ymax"] + pad)
+  ) +
+  labs(title = "Turtle ID: 101010", x = NULL, y = NULL) +
+  theme_minimal()
+
+p_101010
+
+# Turtle ID 107822
+p_107822 <- ggplot() +
+  geom_sf(data = land, fill = "grey90", color = "grey60") +
+  geom_sf(data = turtle_tracks %>% filter(turtle_id == "107822"), color = "red", linewidth = 0.6) +
+  geom_sf(data = turtle_pts %>% filter(turtle_id == "107822"), size = 0.4, alpha = 0.5) +
+  coord_sf(
+    xlim = c(bbox["xmin"] - pad, bbox["xmax"] + pad),
+    ylim = c(bbox["ymin"] - pad, bbox["ymax"] + pad)
+  ) +
+  labs(title = "Turtle ID: 107822", x = NULL, y = NULL) +
+  theme_minimal()
+
+p_107822
+
+# Turtle ID 107833
+p_107833 <- ggplot() +
+  geom_sf(data = land, fill = "grey90", color = "grey60") +
+  geom_sf(data = turtle_tracks %>% filter(turtle_id == "107833"), color = "red", linewidth = 0.6) +
+  geom_sf(data = turtle_pts %>% filter(turtle_id == "107833"), size = 0.4, alpha = 0.5) +
+  coord_sf(
+    xlim = c(bbox["xmin"] - pad, bbox["xmax"] + pad),
+    ylim = c(bbox["ymin"] - pad, bbox["ymax"] + pad)
+  ) +
+  labs(title = "Turtle ID: 107833", x = NULL, y = NULL) +
+  theme_minimal()
+
+p_107833
+
+# Turtle ID 107844
+p_107844 <- ggplot() +
+  geom_sf(data = land, fill = "grey90", color = "grey60") +
+  geom_sf(data = turtle_tracks %>% filter(turtle_id == "107844"), color = "red", linewidth = 0.6) +
+  geom_sf(data = turtle_pts %>% filter(turtle_id == "107844"), size = 0.4, alpha = 0.5) +
+  coord_sf(
+    xlim = c(bbox["xmin"] - pad, bbox["xmax"] + pad),
+    ylim = c(bbox["ymin"] - pad, bbox["ymax"] + pad)
+  ) +
+  labs(title = "Turtle ID: 107844", x = NULL, y = NULL) +
+  theme_minimal()
+
+p_107844
+
+# Turtle ID 107893
+p_107893 <- ggplot() +
+  geom_sf(data = land, fill = "grey90", color = "grey60") +
+  geom_sf(data = turtle_tracks %>% filter(turtle_id == "107893"), color = "red", linewidth = 0.6) +
+  geom_sf(data = turtle_pts %>% filter(turtle_id == "107893"), size = 0.4, alpha = 0.5) +
+  coord_sf(
+    xlim = c(bbox["xmin"] - pad, bbox["xmax"] + pad),
+    ylim = c(bbox["ymin"] - pad, bbox["ymax"] + pad)
+  ) +
+  labs(title = "Turtle ID: 107893", x = NULL, y = NULL) +
+  theme_minimal()
+
+p_107893
+
+# Turtle ID 107894
+p_107894 <- ggplot() +
+  geom_sf(data = land, fill = "grey90", color = "grey60") +
+  geom_sf(data = turtle_tracks %>% filter(turtle_id == "107894"), color = "red", linewidth = 0.6) +
+  geom_sf(data = turtle_pts %>% filter(turtle_id == "107894"), size = 0.4, alpha = 0.5) +
+  coord_sf(
+    xlim = c(bbox["xmin"] - pad, bbox["xmax"] + pad),
+    ylim = c(bbox["ymin"] - pad, bbox["ymax"] + pad)
+  ) +
+  labs(title = "Turtle ID: 107894", x = NULL, y = NULL) +
+  theme_minimal()
+
+p_107894
+
+# Turtle ID 107896
+p_107896 <- ggplot() +
+  geom_sf(data = land, fill = "grey90", color = "grey60") +
+  geom_sf(data = turtle_tracks %>% filter(turtle_id == "107896"), color = "red", linewidth = 0.6) +
+  geom_sf(data = turtle_pts %>% filter(turtle_id == "107896"), size = 0.4, alpha = 0.5) +
+  coord_sf(
+    xlim = c(bbox["xmin"] - pad, bbox["xmax"] + pad),
+    ylim = c(bbox["ymin"] - pad, bbox["ymax"] + pad)
+  ) +
+  labs(title = "Turtle ID: 107896", x = NULL, y = NULL) +
+  theme_minimal()
+
+p_107896
+
+# Turtle ID 107898
+p_107898 <- ggplot() +
+  geom_sf(data = land, fill = "grey90", color = "grey60") +
+  geom_sf(data = turtle_tracks %>% filter(turtle_id == "107898"), color = "red", linewidth = 0.6) +
+  geom_sf(data = turtle_pts %>% filter(turtle_id == "107898"), size = 0.4, alpha = 0.5) +
+  coord_sf(
+    xlim = c(bbox["xmin"] - pad, bbox["xmax"] + pad),
+    ylim = c(bbox["ymin"] - pad, bbox["ymax"] + pad)
+  ) +
+  labs(title = "Turtle ID: 107898", x = NULL, y = NULL) +
+  theme_minimal()
+
+p_107898
+
+# Turtle ID 107899
+p_107899 <- ggplot() +
+  geom_sf(data = land, fill = "grey90", color = "grey60") +
+  geom_sf(data = turtle_tracks %>% filter(turtle_id == "107899"), color = "red", linewidth = 0.6) +
+  geom_sf(data = turtle_pts %>% filter(turtle_id == "107899"), size = 0.4, alpha = 0.5) +
+  coord_sf(
+    xlim = c(bbox["xmin"] - pad, bbox["xmax"] + pad),
+    ylim = c(bbox["ymin"] - pad, bbox["ymax"] + pad)
+  ) +
+  labs(title = "Turtle ID: 107899", x = NULL, y = NULL) +
+  theme_minimal()
+
+p_107899
+```
+
