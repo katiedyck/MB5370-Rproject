@@ -61,12 +61,29 @@ library(rnaturalearth)
 library(plotly)
 ```
 
+```{r connect to GitHub on JCU computers, eval=FALSE}
+# go to where you want the project stored (cd ~/Documents)
+# in R terminal: git clone https://github.com/katiedyck/MB5370-Rproject.git
+# move into folder: cd MB5370-Rproject
+# after saving:
+  # git add .
+  # git commit -m "Comment"
+  # git push
+
+# if repository is already cloned:
+  # cd ~/Documents/MB5370-RProject
+  # git pull
+  # git add .
+  # git commit -m "Comment"
+  # git push
+```
+
 # Data
 
 ## Tracking data
 
 ```{r import tracking data}
-whales <- read_csv("C:/Users/jc984308/Downloads/AAS_4600_EastAus_humpback_satellite_tracking_data/AAS_4600_EastAus_humpback_satellite_tracking_data/1.Argos_locs.csv")
+whales <- read_csv("C:/Users/jc984308/Documents/MB5370/1.Argos_locs.csv")
 #whales <- read_csv("~/Documents/JCU/2026 TR2/MB5370/R Project/AAS_4600_EastAus_humpback_satellite_tracking_data/1.Argos_locs.csv")
 glimpse(whales)
 ```
@@ -129,7 +146,7 @@ glimpse(whales)
 ## Metadata
 
 ```{r}
-metadata <- read_csv("C:/Users/jc984308/Downloads/AAS_4600_EastAus_humpback_satellite_tracking_data/AAS_4600_EastAus_humpback_satellite_tracking_data/4.Deploy_dets_HBW.csv")
+metadata <- read_csv("C:/Users/jc984308/Documents/MB5370/4.Deploy_dets_HBW.csv")
 #metadata <- read_csv("~/Documents/JCU/2026 TR2/MB5370/R Project/AAS_4600_EastAus_humpback_satellite_tracking_data/4.Deploy_dets_HBW.csv")
 glimpse(metadata)
 
@@ -154,12 +171,12 @@ metadata <- metadata |>
            movement = `Movement captured`)
 glimpse(metadata)
 ```
-```{r}
+```{r unique values for categorical variables}
 unique(metadata$dep_loc)  # change to factor
 unique(metadata$stage)  # change to factor
 unique(metadata$sex)  # change to factor
 unique(metadata$maturity)   # change to factor
-unique(metadata$init_activity)
+unique(metadata$init_activity)  # change to factor
 unique(metadata$movement)
 ```
 
@@ -169,7 +186,7 @@ There are 50 PTT numbers in the data, each one representing a different humpback
 metadata <- metadata |> 
     mutate(dep_date = dmy(dep_date)) |> 
     mutate(end_date = dmy(end_date)) |>
-    mutate(year = year(dep_year))
+    mutate(dep_year = year(dep_year))
 
 glimpse(metadata)
 ```
@@ -187,20 +204,18 @@ metadata <- metadata |>
     mutate(dep_loc = as.factor(dep_loc)) |>
     mutate(stage = as.factor(stage)) |>
     mutate(sex = as.factor(sex)) |>
-    mutate(maturity = as.factor(maturity))
+    mutate(maturity = as.factor(maturity)) |>
+    mutate(init_activity = as.factor(init_activity)) |>
+    mutate(movement = as.factor(movement))
 
 glimpse(metadata)
 ```
-
 
 ```{r remove unnecessary metadata columns}
 metadata_filt <- metadata |> 
     select(-c(14,15,16))
 
 glimpse(metadata_filt)
-```
-```{r counts for factored variables}
-metadata_filt
 ```
 
 
@@ -213,16 +228,61 @@ whales_all <- whales |>
 glimpse(whales_all)
 ```
 
+```{r counts for factor variables}
+# argos location classes
+whales_all |>
+    group_by(argos_loc_class) |>
+    summarise(count = n()) |>
+    arrange(desc(count))
+
+# PTT
+whales_all |>
+    group_by(PTT) |>
+    summarise(count = n()) |>
+    arrange(desc(count))
+
+# dep_loc
+whales_all |> 
+    group_by(dep_loc) |> 
+    summarise(n_points = n()) |> 
+    arrange(desc(n_points))
+
+# stage
+whales_all |> 
+    group_by(stage) |> 
+    summarise(count = n()) |> 
+    arrange(desc(count))
+
+# sex
+whales_all |> 
+    group_by(sex) |> 
+    summarise(count = n()) |> 
+    arrange(desc(count))
+
+# maturity
+whales_all |> 
+    group_by(maturity) |> 
+    summarise(count = n()) |> 
+    arrange(desc(count))
+
+# init_activity
+whales_all |>
+    group_by(init_activity) |>
+    summarise(count = n()) |>
+    arrange(desc(count))
+
+# movement
+whales_all |>
+    group_by(movement) |>
+    summarise(count = n()) |>
+    arrange(desc(count))
+```
+
 **Is there a relationship between number of GPS points and where the whales went?**
 
 ```{r num GPS points per whale}
 whales_all |> 
     group_by(PTT, dep_loc) |> 
-    summarise(n_points = n()) |> 
-    arrange(desc(n_points))
-
-whales_all |> 
-    group_by(dep_loc) |> 
     summarise(n_points = n()) |> 
     arrange(desc(n_points))
 
@@ -234,6 +294,11 @@ whales_all |>
 whales_all |> 
     group_by(PTT, num_locations) |> 
     summarise(n_points = n()) |> 
+    arrange(desc(n_points))
+
+whales_all |>
+    group_by(dep_loc, init_activity) |>
+    summarise(n_points = n()) |>
     arrange(desc(n_points))
 ```
 
