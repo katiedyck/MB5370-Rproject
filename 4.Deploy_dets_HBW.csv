@@ -1,0 +1,51 @@
+Argos PTT,Deploy year,Deploy date,End date,Tracking duration (days),Deploy location,Deploy latitude,Deploy longitude,Stage of annual cycle upon deployment,Sex,Maturity,Initial Activity,Number of locations,Tag programming,Retained for SSM,SSM derived track distance estimate (km),Movement captured
+96404,2010,1/03/2010,1/03/2010,1,Antarctica,-68.10471,167.0654,On feeding grounds,Unknown,Adult,Slow travelling,28,6h on/18h off,Yes,68,Antarctic feeding grounds
+88752,2009,28/06/2009,29/06/2009,1,"Evans Head, Australia",-29.1873,153.5117,Migrating north,Male,Adult,Travelling,2,6h on/18h off,No,NA,NA
+53359,2010,14/10/2010,14/10/2010,1,"Sunshine Coast, Australia",-26.52725,153.2485,Migrating south,Male,Adult,Surface active,2,4h on/8h off,No,NA,NA
+53376,2010,21/02/2010,23/02/2010,2,Antarctica,-66.95655,164.2014,On feeding grounds,Male,Adult,Feeding,48,4h on/8h off,Yes,222,Antarctic feeding grounds
+88744,2008,25/10/2008,27/10/2008,3,"Eden, Australia",-37.04541,150.0972,Migrating south,Male,Adult,Feeding,17,6h on/18h off,Yes,110,Southern migration along the Australian east coast
+53383,2010,21/02/2010,24/02/2010,3,Antarctica,-66.887,164.1967,On feeding grounds,Male,Adult,Logging,7,4h on/8h off,Yes,244,Antarctic feeding grounds
+96401,2010,7/03/2010,10/03/2010,4,Antarctica,-68.89021,166.8359,On feeding grounds,Male,Adult,Surface active,69,6h on/18h off,Yes,68,Antarctic feeding grounds
+96395,2010,8/03/2010,12/03/2010,5,Antarctica,-66.75556,163.7755,On feeding grounds,Male,Adult,Feeding,82,6h on/18h off,Yes,219,Antarctic feeding grounds
+88743,2008,24/10/2008,5/11/2008,13,"Eden, Australia",-37.10306,150.0577,Migrating south,Male,Adult,Feeding,92,6h on/18h off,Yes,535,Southern migration along the Australian east coast
+96385,2010,22/02/2010,7/03/2010,13,Antarctica,-66.58406,163.3529,On feeding grounds,Female,Adult,Fast travelling,188,6h on/18h off,Yes,383,Antarctic feeding grounds
+88747,2009,24/06/2009,7/07/2009,13,"Evans Head, Australia",-29.1007,153.5608,Migrating north,Male,Adult,Travelling,55,6h on/18h off,Yes,901,Northern migration to breeding grounds
+64238,2010,16/10/2010,30/10/2010,14,"Sunshine Coast, Australia",-26.48847,153.137,Migrating south,Unknown,Adult,Milling,47,6h on/18h off,Yes,790,Southern migration along the Australian east coast
+96412,2010,8/03/2010,22/03/2010,15,Antarctica,-66.8062,163.701,On feeding grounds,Female,Adult,Logging,234,6h on/18h off,Yes,663,Antarctic feeding grounds
+88736,2009,29/06/2009,13/07/2009,15,"Evans Head, Australia",-29.1268,153.4837,Migrating north,Male,Adult,Travelling,56,6h on/18h off,Yes,1016,Northern migration to breeding grounds
+88745,2008,25/10/2008,12/11/2008,18,"Eden, Australia",-37.00558,150.1017,Migrating south,Male,Adult,Feeding,58,6h on/18h off,Yes,1306,Southern migration towards New Zealand
+88746,2008,24/10/2008,12/11/2008,20,"Eden, Australia",-37.15643,150.0939,Migrating south,Male,Subadult,Feeding,117,6h on/18h off,Yes,1662,Southern migration towards New Zealand
+88742,2009,27/06/2009,17/07/2009,20,"Evans Head, Australia",-29.1605,153.5151,Migrating north,Male,Adult,Milling,68,6h on/18h off,Yes,1004,Northern migration to breeding grounds
+96390,2010,8/03/2010,28/03/2010,21,Antarctica,-66.81705,163.5012,On feeding grounds,Female,Adult,Surface active,337,6h on/18h off,Yes,695,Antarctic feeding grounds
+88737,2009,29/06/2009,19/07/2009,21,"Evans Head, Australia",-29.1437,153.48,Migrating north,Male,Adult,Travelling,89,6h on/18h off,Yes,1414,Northern migration to breeding grounds
+96403,2010,25/02/2010,18/03/2010,21,Antarctica,-66.62579,163.0394,On feeding grounds,Female,Adult,Slow travelling,256,6h on/18h off,Yes,1680,Antarctic feeding grounds
+88751,2009,27/06/2009,18/07/2009,21,"Evans Head, Australia",-29.1722,153.4922,Migrating north,Male,Adult,Travelling,77,6h on/18h off,Yes,1334,Northern migration to breeding grounds
+88734,2009,26/06/2009,21/07/2009,26,"Evans Head, Australia",-29.1971,153.4927,Migrating north,Female,Adult,Milling,96,6h on/18h off,Yes,1376,Northern migration to breeding grounds
+88756,2009,29/06/2009,24/07/2009,26,"Evans Head, Australia",-29.0214,153.5122,Migrating north,Male,Adult,Travelling,55,6h on/18h off,Yes,1317,Northern migration to breeding grounds then partial southern migration
+88750,2009,26/06/2009,22/07/2009,26,"Evans Head, Australia",-29.2444,153.4701,Migrating north,Male,Adult,Milling,23,6h on/18h off,Yes,1245,Northern migration to breeding grounds
+88753,2009,26/06/2009,22/07/2009,27,"Evans Head, Australia",-29.1038,153.5299,Migrating north,Unknown,Adult,Travelling,99,6h on/18h off,Yes,1064,Northern migration to breeding grounds
+88717,2008,31/10/2008,29/11/2008,29,"Eden, Australia",-37.0775,149.9276,Migrating south,Female,Adult,Milling,117,6h on/18h off,Yes,1679,Southern migration towards New Zealand
+53348,2010,21/02/2010,24/03/2010,31,Antarctica,-66.88489,164.1775,On feeding grounds,Male,Adult,Feeding,118,4h on/8h off,Yes,1107,Antarctic feeding grounds
+88732,2008,24/10/2008,27/11/2008,34,"Eden, Australia",-37.1324,150.0819,Migrating south,Male,Adult,Feeding,187,6h on/18h off,Yes,2275,Southern migration towards New Zealand
+88748,2009,24/06/2009,28/07/2009,34,"Evans Head, Australia",-29.0386,153.5636,Migrating north,Unknown,Adult,Travelling,108,6h on/18h off,Yes,2212,Northern migration to breeding grounds then partial southern migration
+88735,2008,24/10/2008,1/12/2008,38,"Eden, Australia",-37.13347,150.0815,Migrating south,Male,Subadult,Feeding,194,6h on/18h off,Yes,1010,Southern migration along the Australian east coast
+88755,2009,25/06/2009,3/08/2009,39,"Evans Head, Australia",-28.9675,153.5899,Migrating north,Male,Adult,Travelling,38,6h on/18h off,Yes,1669,Northern migration to breeding grounds then partial southern migration
+98138,2010,22/02/2010,3/04/2010,40,Antarctica,-66.89719,162.8596,On feeding grounds,Male,Adult,Feeding,471,4h on/8h off,Yes,1367,Antarctic feeding grounds
+98139,2010,13/10/2010,22/11/2010,40,"Sunshine Coast, Australia",-26.60403,153.1356,Migrating south,Male,Adult,Travelling,318,4h on/8h off,Yes,2709,Southern migration along the Australian east coast
+88733,2008,24/10/2008,4/12/2008,41,"Eden, Australia",-37.08148,150.0569,Migrating south,Female,Adult,Feeding,278,6h on/18h off,Yes,3883,Southern migration to Antarctic feeding grounds
+88730,2009,28/06/2009,11/08/2009,44,"Evans Head, Australia",-29.0971,153.5225,Migrating north,Male,Adult,Travelling,127,6h on/18h off,Yes,2313,Northern migration to breeding grounds
+96398,2010,8/03/2010,22/04/2010,46,Antarctica,-66.80949,163.6983,On feeding grounds,Male,Adult,Logging,621,6h on/18h off,Yes,1816,Antarctic feeding grounds
+64235,2010,14/10/2010,29/11/2010,46,"Sunshine Coast, Australia",-26.55044,153.2477,Migrating south,Male,Adult,"Surface active, moving slowly",185,6h on/18h off,Yes,4449,Southern migration to Antarctic feeding grounds
+98114,2010,14/10/2010,9/12/2010,56,"Sunshine Coast, Australia",-26.56981,153.1503,Migrating south,Male,Adult,Travelling,358,4h on/8h off,Yes,4600,Southern migration to Antarctic feeding grounds
+88738,2008,27/10/2008,23/12/2008,57,"Eden, Australia",-36.95699,149.9612,Migrating south,Male,Adult,Travelling,469,6h on/18h off,Yes,4099,Southern migration to Antarctic feeding grounds
+88754,2009,28/06/2009,25/08/2009,58,"Evans Head, Australia",-29.153,153.5257,Migrating north,Female,Adult,Travelling,176,6h on/18h off,Yes,3117,Northern migration to breeding grounds then partial southern migration
+98109,2010,21/02/2010,27/04/2010,65,Antarctica,-66.86942,163.6146,On feeding grounds,Female,Calf,Slow travelling,5,4h on/8h off,Yes,442,Antarctic feeding grounds
+88725,2008,25/10/2008,13/01/2009,80,"Eden, Australia",-37.03243,150.1013,Migrating south,Male,Adult,Unknown,601,6h on/18h off,Yes,4303,Southern migration to Antarctic feeding grounds
+88723,2008,24/10/2008,13/01/2009,81,"Eden, Australia",-37.11945,150.0743,Migrating south,Unknown,Adult,Feeding,504,6h on/18h off,Yes,5321,Southern migration to Antarctic feeding grounds
+88718,2008,25/10/2008,24/01/2009,91,"Eden, Australia",-37.00804,150.1013,Migrating south,Male,Adult,Feeding,748,6h on/18h off,Yes,5050,Southern migration to Antarctic feeding grounds
+96386,2010,1/03/2010,31/05/2010,92,Antarctica,-67.97791,166.7589,On feeding grounds,Female,Adult,Slow travelling,1099,6h on/18h off,Yes,3805,Antarctic feeding grounds
+88728,2008,1/11/2008,1/02/2009,92,"Eden, Australia",-37.09813,149.9316,Migrating south,Female,Adult,Unknown,908,6h on/18h off,Yes,5540,Southern migration to Antarctic feeding grounds
+88729,2008,29/10/2008,3/02/2009,98,"Eden, Australia",-37.06767,150.0495,Migrating south,Female,Adult,Feeding,868,6h on/18h off,Yes,6352,Southern migration to Antarctic feeding grounds
+98129,2010,16/10/2010,29/01/2011,104,"Sunshine Coast, Australia",-26.39314,153.1557,Migrating south,Unknown,Adult,Unknown,862,4h on/8h off,Yes,6636,Southern migration to Antarctic feeding grounds
+88741,2008,1/11/2008,4/04/2009,154,"Eden, Australia",-37.0712,149.9543,Migrating south,Female,Adult,Travelling,1409,6h on/18h off,Yes,8580,Southern migration towards New Zealand and then onto Antarctic feeding grounds
+98100,2010,14/10/2010,27/07/2011,286,"Sunshine Coast, Australia",-26.46447,153.1491,Migrating south,Female,Adult,Travelling,344,4h on/8h off,Yes,7046,Partial southern migration then northern migration to breeding grounds following an 8 month gap in daat transmission

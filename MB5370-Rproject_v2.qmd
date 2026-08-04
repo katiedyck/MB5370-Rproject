@@ -1,0 +1,315 @@
+---
+title: "MB5370 R Project"
+author: "Katie Dyck"
+date: "2026-08-13"
+format:
+  html:
+      df-scroll: true
+      embed-resources: true
+      code-fold: show
+      code-copy: hover
+      code-block-bg: true
+      code-block-border-left: "grey25"
+      code-overflow: scroll
+      toc: true
+      number-sections: true
+      number-depth: 4
+      toc-location: left
+      toc-expand: 3
+      toc-title: Contents
+      syntax-highlighting: github
+      theme: cosmo
+      title-block-banner: true
+      fig-height: 6
+      fig-width: 10
+      fig-cap-location: bottom
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  include = TRUE,
+  message = FALSE,
+  warning = FALSE)
+```
+
+# Housekeeping
+
+Purge the global environment with the command `rm(list = ls())`.
+
+```{r Clear session environment, echo=FALSE, include=FALSE}
+#| output: false
+
+# Inventory every active object currently residing in session RAM
+objects()
+
+# Purge global environment
+rm(list = ls())
+
+# Confirm that global session memory is now vacant
+objects()
+```
+
+# Load packages
+
+```{r load packages}
+library(usethis)
+library(tidyverse)
+library(hms)
+library(sf)
+library(rnaturalearth)
+library(plotly)
+```
+
+# Data
+
+## Tracking data
+
+```{r import tracking data}
+whales <- read_csv("C:/Users/jc984308/Downloads/AAS_4600_EastAus_humpback_satellite_tracking_data/AAS_4600_EastAus_humpback_satellite_tracking_data/1.Argos_locs.csv")
+#whales <- read_csv("~/Documents/JCU/2026 TR2/MB5370/R Project/AAS_4600_EastAus_humpback_satellite_tracking_data/1.Argos_locs.csv")
+glimpse(whales)
+```
+
+```{r rename columns}
+# rename columns
+whales <- whales |> 
+    rename(PTT = `Argos PTT`,
+           argos_loc_class = `Argos location class`,
+           lon = Longitude, lat = Latitude,
+           date_time = GMT)
+glimpse(whales)
+```
+
+```{r change date_time column class}
+whales <- whales |> 
+    mutate(date_time = dmy_hm(date_time))
+glimpse(whales)
+```
+
+```{r set PTT as factor type}
+# should only be 50 PTT numbers
+unique(whales$PTT)
+
+# change to factor type
+whales <- whales |> 
+    mutate(PTT = as.factor(PTT))
+```
+
+```{r make year, date, time columns}
+whales <- whales |> 
+    mutate(year = year(date_time),    # year for each GPS point
+           date = date(date_time),    # date for each GPS point
+           time = as_hms(date_time)) |>     # time for each GPS point
+    relocate(year, .after = date_time) |> 
+    relocate(date, .after = year) |> 
+    relocate(time, .after = date)
+```
+
+```{r ARGOS location classes}
+# change to factor type
+whales <- whales |> 
+    mutate(argos_loc_class = as.factor(argos_loc_class))
+
+glimpse(whales$argos_loc_class)
+```
+
+ARGOS Location classes:
+- A, B = no accuracy estimation
+- 0 = estimated error > 1500m
+- 1 = estimated error 500m < < 1500m
+- 2 = estimated error 250 < < 500
+- 3 = estimated error < 250 m
+
+```{r}
+glimpse(whales)
+```
+
+
+## Metadata
+
+```{r}
+metadata <- read_csv("C:/Users/jc984308/Downloads/AAS_4600_EastAus_humpback_satellite_tracking_data/AAS_4600_EastAus_humpback_satellite_tracking_data/4.Deploy_dets_HBW.csv")
+#metadata <- read_csv("~/Documents/JCU/2026 TR2/MB5370/R Project/AAS_4600_EastAus_humpback_satellite_tracking_data/4.Deploy_dets_HBW.csv")
+glimpse(metadata)
+
+# rename columns
+metadata <- metadata |> 
+    rename(PTT = `Argos PTT`,
+           dep_year = `Deploy year`,
+           dep_date = `Deploy date`,
+           end_date = `End date`,
+           track_dur = `Tracking duration (days)`,
+           dep_loc = `Deploy location`,
+           dep_lat = `Deploy latitude`,
+           dep_lon = `Deploy longitude`,
+           stage = `Stage of annual cycle upon deployment`,
+           sex = Sex,
+           maturity = Maturity,
+           init_activity = `Initial Activity`,
+           num_locations = `Number of locations`,
+           tag_prog = `Tag programming`,
+           retain_SSM = `Retained for SSM`,
+           SSM_est_dist = `SSM derived track distance estimate (km)`,
+           movement = `Movement captured`)
+glimpse(metadata)
+```
+```{r}
+unique(metadata$dep_loc)  # change to factor
+unique(metadata$stage)  # change to factor
+unique(metadata$sex)  # change to factor
+unique(metadata$maturity)   # change to factor
+unique(metadata$init_activity)
+unique(metadata$movement)
+```
+
+There are 50 PTT numbers in the data, each one representing a different humpback whale.
+
+```{r change metadata date columns to POSIXct}
+metadata <- metadata |> 
+    mutate(dep_date = dmy(dep_date)) |> 
+    mutate(end_date = dmy(end_date)) |>
+    mutate(year = year(dep_year))
+
+glimpse(metadata)
+```
+
+```{r change metadata PTT to factor type}
+# change to factor type
+metadata <- metadata |> 
+    mutate(PTT = as.factor(PTT))
+
+glimpse(metadata)
+```
+
+```{r change other variables to factor type}
+metadata <- metadata |>
+    mutate(dep_loc = as.factor(dep_loc)) |>
+    mutate(stage = as.factor(stage)) |>
+    mutate(sex = as.factor(sex)) |>
+    mutate(maturity = as.factor(maturity))
+
+glimpse(metadata)
+```
+
+
+```{r remove unnecessary metadata columns}
+metadata_filt <- metadata |> 
+    select(-c(14,15,16))
+
+glimpse(metadata_filt)
+```
+```{r counts for factored variables}
+metadata_filt
+```
+
+
+# Investigate the data
+
+```{r merge dataframes}
+whales_all <- whales |> 
+    left_join(metadata_filt, by = join_by(PTT))
+
+glimpse(whales_all)
+```
+
+**Is there a relationship between number of GPS points and where the whales went?**
+
+```{r num GPS points per whale}
+whales_all |> 
+    group_by(PTT, dep_loc) |> 
+    summarise(n_points = n()) |> 
+    arrange(desc(n_points))
+
+whales_all |> 
+    group_by(dep_loc) |> 
+    summarise(n_points = n()) |> 
+    arrange(desc(n_points))
+
+whales_all |> 
+    group_by(PTT, init_activity) |> 
+    summarise(n_points = n()) |> 
+    arrange(desc(n_points))
+
+whales_all |> 
+    group_by(PTT, num_locations) |> 
+    summarise(n_points = n()) |> 
+    arrange(desc(n_points))
+```
+
+```{r}
+ggplot(whales_all, aes(x = lon, y = lat, group = PTT, colour = PTT)) +
+    geom_path() +
+    theme_minimal() +
+    labs(x = "Longitude", y = "Latitude", color = "Whale (PTT)")
+```
+
+```{r map all whales}
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+whales_all <- whales_all %>% arrange(PTT, date_time)
+
+ggplot() +
+    geom_sf(data = world, fill = "grey70", color = NA) +
+    geom_path(data = whales_all, aes(x = lon, y = lat, group = PTT, color = PTT)) +
+    coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+    theme_minimal() +
+    labs(x = "Longitude", y = "Latitude", color = "Whale (PTT)") +
+    theme(legend.position = "none")
+```
+
+```{r interactive map all whales}
+# interactive map
+p <- ggplot(whales_all, aes(x = lon, y = lat, group = PTT, color = PTT)) +
+  geom_path()
+
+ggplotly(p)
+```
+
+```{r separate map for each whale}
+world <- ne_countries(scale = "medium", returnclass = "sf")
+ptts <- unique(whales_all$PTT)
+
+walk(ptts, function(p) {
+  d <- whales_all %>% filter(PTT == p)
+  
+  # since dep_date/end_date should be constant per whale, grab the first value
+  dep <- format(d$dep_date[1], "%d/%m/%Y")
+  end <- format(d$end_date[1], "%d/%m/%Y")
+  
+  plt <- ggplot() +
+      geom_sf(data = world, fill = "grey80", color = NA) +
+      geom_path(data = d, aes(x = lon, y = lat, colour = "red")) +
+      coord_sf(xlim = range(d$lon), ylim = range(d$lat)) +
+      theme_minimal() +
+      labs(title = paste("Whale PTT:", p), x = "Longitude", y = "Latitude",
+           subtitle = paste("Tracked:", dep, " - ", end))
+  
+  print(plt)
+})
+```
+
+```{r}
+ptts <- unique(whales_all$PTT)
+
+walk(ptts, function(p) {
+  d <- whales_all %>% filter(PTT == p)
+  
+  dep <- format(d$dep_date[1], "%d/%m/%Y")
+  end <- format(d$end_date[1], "%d/%m/%Y")
+  
+  plt <- ggplot() +
+    geom_sf(data = world, fill = "grey70", color = NA) +
+    geom_path(data = d, aes(x = lon, y = lat), color = "red", linewidth = 1.25) +
+    coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+    theme_minimal() +
+    labs(
+      title = paste("Whale PTT:", p),
+      subtitle = paste("Tracked:", dep, "-", end),
+      x = "Longitude", y = "Latitude"
+    )
+  
+  print(plt)
+})
+```
+
