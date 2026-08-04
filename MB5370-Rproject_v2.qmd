@@ -59,6 +59,8 @@ library(hms)
 library(sf)
 library(rnaturalearth)
 library(plotly)
+library(ggspatial)
+library(maps)
 ```
 
 ```{r connect to GitHub on JCU computers, eval=FALSE}
@@ -185,8 +187,7 @@ There are 50 PTT numbers in the data, each one representing a different humpback
 ```{r change metadata date columns to POSIXct}
 metadata <- metadata |> 
     mutate(dep_date = dmy(dep_date)) |> 
-    mutate(end_date = dmy(end_date)) |>
-    mutate(dep_year = year(dep_year))
+    mutate(end_date = dmy(end_date))
 
 glimpse(metadata)
 ```
@@ -202,6 +203,7 @@ glimpse(metadata)
 ```{r change other variables to factor type}
 metadata <- metadata |>
     mutate(dep_loc = as.factor(dep_loc)) |>
+    mutate(dep_year = as.factor(dep_year)) |>
     mutate(stage = as.factor(stage)) |>
     mutate(sex = as.factor(sex)) |>
     mutate(maturity = as.factor(maturity)) |>
@@ -228,6 +230,8 @@ whales_all <- whales |>
     left_join(metadata_filt, by = join_by(PTT))
 
 glimpse(whales_all)
+
+write.csv(whales_all, "all_whales_data.csv", row.names = FALSE)
 ```
 
 ```{r counts for factor variables}
@@ -276,6 +280,12 @@ whales_all |>
 # movement
 whales_all |>
     group_by(movement) |>
+    summarise(count = n()) |>
+    arrange(desc(count))
+
+# dep_year
+whales_all |>
+    group_by(dep_year) |>
     summarise(count = n()) |>
     arrange(desc(count))
 ```
@@ -353,13 +363,13 @@ ggplot() +
     labs(x = "Longitude", y = "Latitude", color = "Whale (PTT)",
          title = "Whales tagged in Antarctica (n = 14)")
 
-ggplot() +
-    geom_sf(data = world, fill = "grey70", color = NA) +
-    geom_path(data = antartcica_whales, aes(x = lon, y = lat, group = PTT, color = PTT)) +
-    coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
-    theme_minimal() +
-    labs(x = "Longitude", y = "Latitude", color = "Whale (PTT)",
-         title = "Whales tagged in Antarctica (n = 14)")
+# ggplot() +
+#     geom_sf(data = world, fill = "grey70", color = NA) +
+#     geom_path(data = antartcica_whales, aes(x = lon, y = lat, group = PTT, color = PTT)) +
+#     coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+#     theme_minimal() +
+#     labs(x = "Longitude", y = "Latitude", color = "Whale (PTT)",
+#          title = "Whales tagged in Antarctica (n = 14)")
 ```
 
 ```{r map whales tagged in Sunshine Coast, Australia}
@@ -378,6 +388,67 @@ ggplot() +
          title = "Whales tagged in Sunshine Coast, Australia (n = 7)")
 ```
 
+```{r map whales by stage}
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+whales_all <- whales_all %>% arrange(PTT, date_time)
+
+ggplot() +
+    geom_sf(data = world, fill = "grey70", color = NA) +
+    geom_path(data = whales_all, aes(x = lon, y = lat, group = PTT, color = stage)) +
+    coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+    theme_minimal() +
+    labs(x = "Longitude", y = "Latitude", color = "Stage of Migration Movement") +
+    scale_fill_discrete(labels = c("Migrating north (n=1251)", "Migrating south (n=10,845)", "On feeding grounds (n=5010)"))
+```
+
+```{r map whales by sex}
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+whales_all <- whales_all %>% arrange(PTT, date_time)
+
+ggplot() +
+    geom_sf(data = world, fill = "grey70", color = NA) +
+    geom_path(data = whales_all, aes(x = lon, y = lat, group = PTT, color = sex)) +
+    coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+    theme_minimal() +
+    labs(x = "Longitude", y = "Latitude", color = "Sex")
+```
+
+```{r map whales by dep_year}
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+whales_all <- whales_all %>% arrange(PTT, date_time)
+
+ggplot() +
+    geom_sf(data = world, fill = "grey70", color = NA) +
+    geom_path(data = whales_all, aes(x = lon, y = lat, group = PTT, color = dep_year)) +
+    coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+    theme_minimal() +
+    labs(x = "Longitude", y = "Latitude", color = "Deployment Year")
+```
+
+```{r map whales by movement}
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+whales_all |>
+  mutate(
+    movement_short = case_when(
+      grepl("Antarctic feeding", movement) ~ "Feeding",
+      grepl("Northern migration", movement) ~ "Northward",
+      grepl("Southern migration", movement) ~ "Southward",
+      grepl("New Zealand", movement) ~ "Via NZ",
+      TRUE ~ "Other"
+    )
+  ) |>
+    ggplot() +
+    geom_sf(data = world, fill = "grey70", color = NA) +
+    geom_path(aes(x = lon, y = lat, group = PTT, color = movement_short)) +
+    coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+    theme_minimal() +
+    labs(x = "Longitude", y = "Latitude", color = "Movement")
+```
+
 ```{r map all whales}
 world <- ne_countries(scale = "medium", returnclass = "sf")
 
@@ -394,10 +465,10 @@ ggplot() +
 
 ```{r interactive map all whales}
 # interactive map
-p <- ggplot(whales_all, aes(x = lon, y = lat, group = PTT, color = PTT)) +
-  geom_path()
-
-ggplotly(p)
+# p <- ggplot(whales_all, aes(x = lon, y = lat, group = PTT, color = PTT)) +
+#   geom_path()
+# 
+# ggplotly(p)
 ```
 
 ```{r separate map for each whale}
@@ -518,6 +589,103 @@ ggplot(whales_all, aes(x = stage, fill = sex)) +
     geom_bar(position = "dodge") +
     labs(x = "Stage of Migration Movement", y = "Count", fill = "Sex") +
     theme_minimal() +
-    scale_x_discrete(labels = c("Migrating South\n(n = 10,845)", "At Feeding Grounds\n(n = 5010)", "Migrating North\n(n = 1251)"))
+    scale_x_discrete(labels = c("Migrating North\n(n = 1251)", "Migrating South\n(n = 10,845)", "On Feeding Grounds\n(n = 5010)"))
+
+# 1. create contingency table
+sex_stage_table <- table(whales_all$sex, whales_all$stage)
+
+# 2. run chi-squared test
+print(chisq.test(sex_stage_table))
+```
+
+```{r correlation bw dep_year and dep_loc}
+# correlation between dep_year and dep_loc
+ggplot(whales_all, aes(x = dep_year, fill = dep_loc)) +
+    geom_bar(position = "dodge") +
+    labs(x = "Deployment Year", y = "Count", fill = "Deployment Location") +
+    theme_minimal() +
+    scale_fill_discrete(labels = c("Antarctica", "Eden, AU", "Evans Head, AU", "Sun. Coast, AU"))
+
+ggplot(whales_all, aes(x = dep_loc, fill = dep_year)) +
+    geom_bar(position = "dodge") +
+    labs(x = "Deployment Location", y = "Count", fill = "Deployment Year") +
+    theme_minimal() +
+    scale_x_discrete(labels = c("Antarctica", "Eden, AU", "Evans Head, AU", "Sun. Coast, AU"))
+```
+
+## Number of tracking points per whale
+
+```{r histrogram tracking ptts per whale}
+ggplot(whales_all, aes(x = PTT)) +
+    geom_bar(fill = "steelblue") +
+    labs(x = "Whale (PTT)", y = "Number of Tracking Points") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+whales_all |>
+    group_by(PTT) |>
+    summarise(n_points = n()) |>
+    filter(n_points > 250) |>
+    ggplot(aes(x = PTT, y = n_points)) +
+    geom_col(fill = "steelblue") +
+    labs(x = "Whale (PTT)", y = "Number of Tracking Points",
+         title = "Whales with > 250 Tracking Points") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+whales_all |>
+    group_by(PTT) |>
+    summarise(n_points = n()) |>
+    filter(n_points > 500) |>
+    ggplot(aes(x = PTT, y = n_points)) +
+    geom_col(fill = "steelblue") +
+    labs(x = "Whale (PTT)", y = "Number of Tracking Points",
+         title = "Whales with > 500 Tracking Points") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+whales_all |>
+    group_by(PTT) |>
+    summarise(n_points = n()) |>
+    filter(n_points > 1000) |>
+    ggplot(aes(x = PTT, y = n_points)) +
+    geom_col(fill = "steelblue") +
+    labs(x = "Whale (PTT)", y = "Number of Tracking Points",
+         title = "Whales with > 1000 Tracking Points") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+# most whales are tracked briefly!
+```
+
+## Distribution of whale sex
+
+```{r distribution of whale sex}
+ggplot(whales_all, aes(sex)) +
+    geom_bar()
+```
+
+## Maturity of tracked whales
+
+```{r maturity of whales}
+ggplot(whales_all, aes(maturity)) +
+    geom_bar()
+```
+
+## Movement patterns
+
+```{r}
+whales_all |>
+    mutate(
+        movement_short = case_when(
+            grepl("Antarctic feeding", movement) ~ "Feeding",
+            grepl("Northern migration", movement) ~ "Northward",
+            grepl("Southern migration", movement) ~ "Southward",
+            grepl("New Zealand", movement) ~ "Via NZ",
+            TRUE ~ "Other"
+            )
+        ) |>    
+    ggplot(aes(movement_short, fill = sex)) +
+    geom_bar(position = "dodge")
 ```
 
