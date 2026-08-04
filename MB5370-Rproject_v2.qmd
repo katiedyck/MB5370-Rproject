@@ -302,11 +302,76 @@ whales_all |>
     arrange(desc(n_points))
 ```
 
-```{r}
-ggplot(whales_all, aes(x = lon, y = lat, group = PTT, colour = PTT)) +
-    geom_path() +
+```{r map whales tagged in Eden, Australia}
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+eden_whales <- whales_all |>
+  filter(dep_loc == "Eden, Australia") |>
+  arrange(PTT, date_time)
+
+ggplot() +
+    geom_sf(data = world, fill = "grey70", color = NA) +
+    geom_path(data = eden_whales, aes(x = lon, y = lat, group = PTT, color = PTT)) +
+    coord_sf(xlim = range(eden_whales$lon), ylim = range(eden_whales$lat)) +
     theme_minimal() +
-    labs(x = "Longitude", y = "Latitude", color = "Whale (PTT)")
+    labs(x = "Longitude", y = "Latitude", color = "Whale (PTT)",
+         title = "Whales tagged in Eden, Australia (n = 15)")
+```
+
+```{r map whales tagged in Evans Head, Australia}
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+evansHead_whales <- whales_all |>
+    filter(dep_loc == "Evans Head, Australia") |>
+    arrange(PTT, date_time)
+
+ggplot() +
+    geom_sf(data = world, fill = "grey70", color = NA) +
+    geom_path(data = evansHead_whales, aes(x = lon, y = lat, group = PTT, color = PTT)) +
+    coord_sf(xlim = range(evansHead_whales$lon) + c(-6,2), ylim = range(evansHead_whales$lat) + c(-2,2)) +
+    theme_minimal() +
+    labs(x = "Longitude", y = "Latitude", color = "Whale (PTT)",
+         title = "Whales tagged in Evans Head, Australia (n = 14)")
+```
+
+```{r map whales tagged in Antarctica}
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+antartcica_whales <- whales_all |>
+    filter(dep_loc == "Antarctica") |>
+    arrange(PTT, date_time)
+
+ggplot() +
+    geom_sf(data = world, fill = "grey70", color = NA) +
+    geom_path(data = antartcica_whales, aes(x = lon, y = lat, group = PTT, color = PTT)) +
+    coord_sf(xlim = range(antartcica_whales$lon) + c(-2,2), ylim = range(antartcica_whales$lat) + c(-2,2)) +
+    theme_minimal() +
+    labs(x = "Longitude", y = "Latitude", color = "Whale (PTT)",
+         title = "Whales tagged in Antarctica (n = 14)")
+
+ggplot() +
+    geom_sf(data = world, fill = "grey70", color = NA) +
+    geom_path(data = antartcica_whales, aes(x = lon, y = lat, group = PTT, color = PTT)) +
+    coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+    theme_minimal() +
+    labs(x = "Longitude", y = "Latitude", color = "Whale (PTT)",
+         title = "Whales tagged in Antarctica (n = 14)")
+```
+
+```{r map whales tagged in Sunshine Coast, Australia}
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+sunshineCoast_whales <- whales_all |>
+    filter(dep_loc == "Sunshine Coast, Australia") |>
+    arrange(PTT, date_time)
+
+ggplot() +
+    geom_sf(data = world, fill = "grey70", color = NA) +
+    geom_path(data = sunshineCoast_whales, aes(x = lon, y = lat, group = PTT, color = PTT)) +
+    coord_sf(xlim = range(sunshineCoast_whales$lon) + c(-6,8), ylim = range(sunshineCoast_whales$lat) + c(-2,2)) +
+    theme_minimal() +
+    labs(x = "Longitude", y = "Latitude", color = "Whale (PTT)",
+         title = "Whales tagged in Sunshine Coast, Australia (n = 7)")
 ```
 
 ```{r map all whales}
@@ -348,7 +413,8 @@ walk(ptts, function(p) {
       coord_sf(xlim = range(d$lon), ylim = range(d$lat)) +
       theme_minimal() +
       labs(title = paste("Whale PTT:", p), x = "Longitude", y = "Latitude",
-           subtitle = paste("Tracked:", dep, " - ", end))
+           subtitle = paste("Tracked:", dep, " - ", end)) +
+      theme(legend.position = "none")
   
   print(plt)
 })
