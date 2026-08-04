@@ -221,6 +221,8 @@ glimpse(metadata_filt)
 
 # Investigate the data
 
+## Merge dataframes
+
 ```{r merge dataframes}
 whales_all <- whales |> 
     left_join(metadata_filt, by = join_by(PTT))
@@ -301,6 +303,8 @@ whales_all |>
     summarise(n_points = n()) |>
     arrange(desc(n_points))
 ```
+
+## Maps
 
 ```{r map whales tagged in Eden, Australia}
 world <- ne_countries(scale = "medium", returnclass = "sf")
@@ -397,50 +401,123 @@ ggplotly(p)
 ```
 
 ```{r separate map for each whale}
-world <- ne_countries(scale = "medium", returnclass = "sf")
-ptts <- unique(whales_all$PTT)
-
-walk(ptts, function(p) {
-  d <- whales_all %>% filter(PTT == p)
-  
-  # since dep_date/end_date should be constant per whale, grab the first value
-  dep <- format(d$dep_date[1], "%d/%m/%Y")
-  end <- format(d$end_date[1], "%d/%m/%Y")
-  
-  plt <- ggplot() +
-      geom_sf(data = world, fill = "grey80", color = NA) +
-      geom_path(data = d, aes(x = lon, y = lat, colour = "red")) +
-      coord_sf(xlim = range(d$lon), ylim = range(d$lat)) +
-      theme_minimal() +
-      labs(title = paste("Whale PTT:", p), x = "Longitude", y = "Latitude",
-           subtitle = paste("Tracked:", dep, " - ", end)) +
-      theme(legend.position = "none")
-  
-  print(plt)
-})
+# world <- ne_countries(scale = "medium", returnclass = "sf")
+# ptts <- unique(whales_all$PTT)
+# 
+# walk(ptts, function(p) {
+#   d <- whales_all %>% filter(PTT == p)
+#   
+#   # since dep_date/end_date should be constant per whale, grab the first value
+#   dep <- format(d$dep_date[1], "%d/%m/%Y")
+#   end <- format(d$end_date[1], "%d/%m/%Y")
+#   
+#   plt <- ggplot() +
+#       geom_sf(data = world, fill = "grey80", color = NA) +
+#       geom_path(data = d, aes(x = lon, y = lat, colour = "red")) +
+#       coord_sf(xlim = range(d$lon), ylim = range(d$lat)) +
+#       theme_minimal() +
+#       labs(title = paste("Whale PTT:", p), x = "Longitude", y = "Latitude",
+#            subtitle = paste("Tracked:", dep, " - ", end)) +
+#       theme(legend.position = "none")
+#   
+#   print(plt)
+# })
 ```
 
-```{r}
-ptts <- unique(whales_all$PTT)
+```{r separate map for each whale, with larger lines and full map}
+# ptts <- unique(whales_all$PTT)
+# 
+# walk(ptts, function(p) {
+#   d <- whales_all %>% filter(PTT == p)
+#   
+#   dep <- format(d$dep_date[1], "%d/%m/%Y")
+#   end <- format(d$end_date[1], "%d/%m/%Y")
+#   
+#   plt <- ggplot() +
+#     geom_sf(data = world, fill = "grey70", color = NA) +
+#     geom_path(data = d, aes(x = lon, y = lat), color = "red", linewidth = 1.25) +
+#     coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+#     theme_minimal() +
+#     labs(
+#       title = paste("Whale PTT:", p),
+#       subtitle = paste("Tracked:", dep, "-", end),
+#       x = "Longitude", y = "Latitude"
+#     )
+#   
+#   print(plt)
+# })
+```
 
-walk(ptts, function(p) {
-  d <- whales_all %>% filter(PTT == p)
-  
-  dep <- format(d$dep_date[1], "%d/%m/%Y")
-  end <- format(d$end_date[1], "%d/%m/%Y")
-  
-  plt <- ggplot() +
-    geom_sf(data = world, fill = "grey70", color = NA) +
-    geom_path(data = d, aes(x = lon, y = lat), color = "red", linewidth = 1.25) +
-    coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+## Correlation between variables
+
+```{r correlation bw dep_loc and init_activity}
+# check correlation between dep_loc and init_activity
+ggplot(whales_all, aes(x = dep_loc, fill = init_activity)) +
+    geom_bar(position = "dodge") +
+    labs(x = "Deployment Location", y = "Count", fill = "Initial Activity") +
     theme_minimal() +
-    labs(
-      title = paste("Whale PTT:", p),
-      subtitle = paste("Tracked:", dep, "-", end),
-      x = "Longitude", y = "Latitude"
-    )
-  
-  print(plt)
-})
+    # rename fill legend labels
+    scale_x_discrete(labels = c("Antarctica", "Eden, AU", "Evans Head, AU", "Sun. Coast, AU"))
+
+whales_all |>
+    mutate(dep_loc = as.numeric(dep_loc),
+           init_activity = as.numeric(init_activity)) |>
+    summarise(correlation = cor(dep_loc, init_activity, use = "complete.obs"))
+```
+
+```{r correlation bw dep_loc and sex}
+# check correlation between dep_loc and sex
+ggplot(whales_all, aes(x = dep_loc, fill = sex)) +
+    geom_bar(position = "dodge") +
+    labs(x = "Deployment Location", y = "Count", fill = "Sex") +
+    theme_minimal() +
+    scale_x_discrete(labels = c("Antarctica", "Eden, AU", "Evans Head, AU", "Sun. Coast, AU")) +
+    scale_fill_discrete(labels = c("Female (n = 8278)", "Male (n = 6824)", "Unknown (n = 2004)"))
+
+whales_all |>
+    mutate(dep_loc = as.numeric(dep_loc),
+           sex = as.numeric(sex)) |>
+    summarise(correlation = cor(dep_loc, sex, use = "complete.obs"))
+```
+
+```{r correlation bw dep_loc and maturity}
+# correlation between dep_loc and maturity
+ggplot(whales_all, aes(x = dep_loc, fill = maturity)) +
+    geom_bar(position = "dodge") +
+    labs(x = "Deployment Location", y = "Count", fill = "Maturity") +
+    theme_minimal() +
+    scale_x_discrete(labels = c("Antarctica", "Eden, AU", "Evans Head, AU", "Sun. Coast, AU")) +
+    scale_fill_discrete(labels = c("Adult (n = 16,722)", "Subadult (n = 377)", "Calf (n = 7)"))
+
+# 1. create contingency table
+depLoc_matur_table <- table(whales_all$dep_loc, whales_all$maturity)
+
+# 2. run chi-squared test
+print(chisq.test(depLoc_matur_table))  # p-value < 0.05 = significant association between dep_loc and maturity
+```
+
+```{r correlation bw dep_loc and stage}
+# correlation between dep_loc and stage
+ggplot(whales_all, aes(x = dep_loc, fill = stage)) +
+    geom_bar(position = "dodge") +
+    labs(x = "Deployment Location", y = "Count", fill = "Stage of Migration Movement") +
+    theme_minimal() +
+    scale_x_discrete(labels = c("Antarctica", "Eden, AU", "Evans Head, AU", "Sun. Coast, AU")) +
+    scale_fill_discrete(labels = c("Migrating South (n = 10,845)", "At Feeding Grounds (n = 5010)", "Migrating North (n = 1251)"))
+
+# 1. create contingency table
+depLoc_stage_table <- table(whales_all$dep_loc, whales_all$stage)
+
+# 2. run chi-squared test
+print(chisq.test(depLoc_stage_table))  # p-value < 0.05 = significant association between dep_loc and stage
+```
+
+```{r correlation bw sex and stage}
+# correlation between sex and stage
+ggplot(whales_all, aes(x = stage, fill = sex)) +
+    geom_bar(position = "dodge") +
+    labs(x = "Stage of Migration Movement", y = "Count", fill = "Sex") +
+    theme_minimal() +
+    scale_x_discrete(labels = c("Migrating South\n(n = 10,845)", "At Feeding Grounds\n(n = 5010)", "Migrating North\n(n = 1251)"))
 ```
 
