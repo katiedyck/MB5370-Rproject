@@ -407,6 +407,99 @@ ggplot() +
 ggsave("all_whales_movement_path.png", width = 10, height = 6, dpi = 300, path = "figures/")
 ```
 
+```{r map of whales tracked per month}
+world <- ne_countries(scale = "medium", returnclass = "sf")
+whales_all <- whales_all %>% arrange(PTT, date_time)
+
+# Determine the min/max for breaks based on data range, rounded to nearest 20 for cleaner breaks
+min_lon <- floor(min(whales_all$lon) / 20) * 20
+max_lon <- ceiling(max(whales_all$lon) / 20) * 20
+min_lat <- floor(min(whales_all$lat) / 20) * 20
+max_lat <- ceiling(max(whales_all$lat) / 20) * 20
+
+# ggplot() +
+#     geom_sf(data = world, fill = "grey70", color = NA) +
+#     geom_path(data = whales_all, aes(x = lon, y = lat, group = PTT, color = month(date_time))) +
+#     coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+#     scale_x_continuous(breaks = seq(min_lon, max_lon, by = 20)) + # Set x-axis breaks every 20 degrees
+#     scale_y_continuous(breaks = seq(min_lat, max_lat, by = 20)) + # Set y-axis breaks every 20 degrees
+#     theme_minimal() +
+#     labs(x = "Longitude", y = "Latitude", color = "Month",
+#          title = "Movement of Humpback Whales by Month") +
+#     theme(plot.title = element_text(face = "bold", size = 15), axis.title.x = element_text(vjust = -0.8), axis.text = element_text(size = 11),
+#           axis.title = element_text(size = 13), legend.text = element_text(size = 10), legend.title = element_text(size = 12))
+
+plot_whale_month <- function(month_num, whales_data, world) {
+
+  whales_month <- whales_data %>%
+    filter(month(date_time) == month_num)
+
+  ggplot() +
+    geom_sf(data = world, fill = "grey70", color = NA) +
+    geom_path(data = whales_month, aes(x = lon, y = lat, group = PTT), color = "red") +
+    coord_sf(xlim = range(whales_data$lon, na.rm = TRUE), ylim = range(whales_data$lat, na.rm = TRUE)) +
+    scale_x_continuous(breaks = seq(min_lon, max_lon, by = 20)) +
+    scale_y_continuous(breaks = seq(min_lat, max_lat, by = 20)) +
+    theme_minimal() +
+    labs(title = month.name[month_num], x = "Longitude", y = "Latitude") +
+    theme(
+      plot.title = element_text(face = "bold", size = 15),
+      axis.title.x = element_text(vjust = -0.8),
+      axis.text = element_text(size = 11),
+      axis.title = element_text(size = 13)
+    )
+}
+
+# generate all 12 plots
+monthly_plots <- lapply(1:12, plot_whale_month,
+                        whales_data = whales_all,
+                        world = world)
+monthly_plots[[1]]  # display the plot for January
+monthly_plots[[2]]
+monthly_plots[[3]]
+monthly_plots[[4]]
+monthly_plots[[5]]
+monthly_plots[[6]]
+monthly_plots[[7]]
+monthly_plots[[8]]
+monthly_plots[[10]]
+monthly_plots[[11]]
+monthly_plots[[12]]
+```
+
+```{r facet wrap of whales tracked per year, grouped by month}
+min_lon <- floor(min(whales_all$lon) / 20) * 20
+max_lon <- ceiling(max(whales_all$lon) / 20) * 20
+min_lat <- floor(min(whales_all$lat) / 20) * 20
+max_lat <- ceiling(max(whales_all$lat) / 20) * 20
+
+ggplot() +
+  geom_sf(data = world, fill = "grey70", colour = NA) +
+  geom_path(data = whales_all,
+    aes(x = lon, y = lat, group = interaction(PTT, year(date_time)), colour = month(date_time)), linewidth = 0.5
+  ) +
+  coord_sf(xlim = c(105, 180), ylim = c(-75, -5), expand = FALSE) +
+  scale_x_continuous(breaks = seq(min_lon, max_lon, by = 20)) +
+  scale_y_continuous(breaks = seq(min_lat, max_lat, by = 20)) +
+  facet_wrap(~year(date_time)) +
+  scale_colour_gradientn(
+    colours = hcl.colors(12, "Spectral"),
+    breaks = 1:12,
+    labels = month.abb
+  ) +
+  theme_minimal() +
+  labs(title = "Annual Movement Paths of Satellite-Tracked \nHumpback Whales", x = "Longitude (°E)", y = "Latitude (°S)", colour = "Month") +
+  theme(
+    plot.title = element_text(face = "bold", size = 15),
+    axis.title.x = element_text(vjust = -0.8),
+    axis.title = element_text(size = 13),
+    legend.text = element_text(size = 10),
+    legend.title = element_text(size = 12)
+  )
+
+ggsave("whales_by_year.png", width = 10, height = 6, dpi = 300, path = "figures/")
+```
+
 ```{r map whales tagged in Eden, Australia}
 world <- ne_countries(scale = "medium", returnclass = "sf")
 
