@@ -248,7 +248,7 @@ whales_all <- whales |>
 
 glimpse(whales_all)
 
-write.csv(whales_all, "all_whales_data.csv", row.names = FALSE)
+# write.csv(whales_all, "all_whales_data.csv", row.names = FALSE)
 ```
 
 Create a table of counts for each factor variable in the `whales_all` dataframe to see how many whales were tagged in each location, what their sex and maturity were, how many departed from each tagging location, and what their initial activity was. This will help to identify any patterns or trends in the data.
