@@ -4,6 +4,7 @@ author: "Katie Dyck"
 date: "2026-08-13"
 format:
   html:
+      df-scroll: true
       embed-resources: true
       code-fold: show
       code-copy: hover
@@ -265,7 +266,24 @@ p_all
 # ggsave("turtle_tracks_all.png", p_all, width = 8, height = 10, dpi = 300)
 ```
 
-For turtle ID 107822, some of the tracking points are on land, far away from the shore, which is impossible. This is likely due to the fact that the tracking points are not accurate, and the turtle was likely in the water at the time. I will find these points in the  dataset and disclude them from my analysis.
+For turtle ID 107822 and 107833, some of the tracking points are on land, far away from the shore, which is impossible. This is likely due to the fact that the tracking points are not accurate, and the turtle was likely in the water at the time. I will find these points in the dataset and exclude them from my analysis.
+
+```{r}
+# Find tracking points that are on land for turtles 107822 and 107833
+land_points_107822 <- turtle_pts %>%
+    filter(turtle_id == "107822") %>%
+    st_join(land, join = st_intersects) %>%
+    filter(!is.na(name))  # points that intersect with land polygons
+
+land_points_107833 <- turtle_pts %>%
+    filter(turtle_id == "107833") %>%
+    st_join(land, join = st_intersects) %>%
+    filter(!is.na(name))  # points that intersect with land polygons3
+
+print(land_points_107822)
+print(land_points_107833)
+```
+
 
 
 
