@@ -59,8 +59,6 @@ library(hms)
 library(sf)
 library(rnaturalearth)
 library(plotly)
-library(ggspatial)
-library(maps)
 ```
 
 ```{r connect to GitHub on JCU computers, eval=FALSE}
@@ -183,6 +181,8 @@ unique(metadata$maturity)   # change to factor
 unique(metadata$init_activity)  # change to factor
 unique(metadata$movement)   # possibly change to factor - check for typos, if names can be shortened for clarity
 unique(metadata$track_dur)
+unique(metadata$tag_prog)
+unique(metadata$retain_SSM)
 ```
 
 Edit the `movement` column to fix typos.
@@ -222,17 +222,11 @@ metadata <- metadata |>
     mutate(sex = as.factor(sex)) |>
     mutate(maturity = as.factor(maturity)) |>
     mutate(init_activity = as.factor(init_activity)) |>
-    mutate(movement = as.factor(movement))
+    mutate(movement = as.factor(movement)) |> 
+    mutate(retain_SSM = as.factor(retain_SSM)) |>
+    mutate(tag_prog = as.factor(tag_prog))
 
 glimpse(metadata)
-```
-
-Remove unnecessary metadata columns.
-```{r remove unnecessary metadata columns}
-metadata_filt <- metadata |> 
-    select(-c(14,15,16))
-
-glimpse(metadata_filt)
 ```
 
 
@@ -244,7 +238,7 @@ Join the tracking data and metadata dataframes by the `PTT` column to create a n
 
 ```{r merge dataframes}
 whales_all <- whales |> 
-    left_join(metadata_filt, by = join_by(PTT))
+    left_join(metadata, by = join_by(PTT))
 
 glimpse(whales_all)
 
@@ -373,10 +367,13 @@ ggplot(whales_all, aes(x = argos_loc_class, fill = argos_loc_class)) +
     labs(x = "ARGOS Location Class", y = "Count",
          title = "ARGOS Location Classes for Humpback Whales, 2008-2010") +
     theme_minimal() +
-    theme(plot.title = element_text(face = "bold"), axis.title.x = element_text(vjust = -0.8),
-          legend.position = "none") +
-    geom_label(stat = "count", aes(label = after_stat(count)), vjust = -0.3, fill = "white", color = "black", label.size = 0.3) +
-    ylim(0,6000)
+    theme(plot.title = element_text(face = "bold", size = 16), axis.title.x = element_text(vjust = -0.8),
+          legend.position = "none", axis.text = element_text(size = 11), axis.title = element_text(size = 13)) +
+    geom_label(stat = "count", aes(label = after_stat(count)), vjust = -0.3, fill = "white", color = "black", label.size = 0.3,
+               size = 4) +
+    ylim(0,6000) +
+    # set order of x-axis to be 3, 2, 1, 0, A, B
+    scale_x_discrete(limits = c("3", "2", "1", "0", "A", "B"))
 
 ggsave("argos_location_classes.png", width = 10, height = 6, dpi = 300, path = "figures/")
 ```
@@ -389,17 +386,23 @@ Map the movement path of all 50 whales included in the data.
 world <- ne_countries(scale = "medium", returnclass = "sf")
 whales_all <- whales_all %>% arrange(PTT, date_time)
 
+# Determine the min/max for breaks based on data range, rounded to nearest 20 for cleaner breaks
+min_lon <- floor(min(whales_all$lon) / 20) * 20
+max_lon <- ceiling(max(whales_all$lon) / 20) * 20
+min_lat <- floor(min(whales_all$lat) / 20) * 20
+max_lat <- ceiling(max(whales_all$lat) / 20) * 20
+
 ggplot() +
-    geom_sf(data = world, fill = "grey70", color = NA) +
-    geom_path(data = whales_all, aes(x = lon, y = lat, group = PTT, color = PTT)) +
-    geom_point(data = tibble(lon = 149.9, lat = -37.066667), aes(x = lon, y = lat), color = "black", size = 2) +  # Eden
-    geom_point(data = tibble(lon = 153.4333, lat = -29.116667), aes(x = lon, y = lat), color = "black", size = 2) +  # Evans Head
-    geom_point(data = tibble(lon = 153.1, lat = -26.65), aes(x = lon, y = lat), color = "black", size = 2) +  # Sunshine Coast
-    coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
-    theme_minimal() +
-    labs(x = "Longitude", y = "Latitude", color = "Whale (PTT)",
-         title = "Movement Path of all Humpback Whales, 2008-2010") +
-    theme(legend.position = "none", plot.title = element_text(face = "bold"))
+  geom_sf(data = world, fill = "grey70", color = NA) +
+  geom_path(data = whales_all, aes(x = lon, y = lat, group = PTT, color = PTT)) +
+  coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+  scale_x_continuous(breaks = seq(min_lon, max_lon, by = 20)) + # Set x-axis breaks every 20 degrees
+  scale_y_continuous(breaks = seq(min_lat, max_lat, by = 20)) + # Set y-axis breaks every 20 degrees
+  theme_minimal() +
+  labs(x = "Longitude", y = "Latitude", color = "Whale (PTT)",
+       title = "Movement Path of all Humpback Whales, 2008-2010") +
+  theme(legend.position = "none", plot.title = element_text(face = "bold", size = 15),
+        axis.title.x = element_text(vjust = -0.8), axis.text = element_text(size = 11), axis.title = element_text(size = 13))
 
 ggsave("all_whales_movement_path.png", width = 10, height = 6, dpi = 300, path = "figures/")
 ```
@@ -412,17 +415,24 @@ eden_whales <- whales_all |>
   filter(dep_loc == "Eden, Australia") |>
   arrange(PTT, date_time)
 
+dep <- format(eden_whales$dep_date[1], "%d/%m/%Y")
+end <- format(eden_whales$end_date[1], "%d/%m/%Y")
+
 ggplot() +
     geom_sf(data = world, fill = "grey70", color = NA) +
     geom_path(data = eden_whales, aes(x = lon, y = lat, group = PTT, color = PTT)) +
     # add a point for Eden, Australia location
-    geom_point(data = tibble(lon = 149.9, lat = -37.066667), aes(x = lon, y = lat), color = "black", size = 2) +
+    geom_point(data = tibble(lon = 149.9, lat = -37.066667), aes(x = lon, y = lat), color = "black", size = 3) +
     coord_sf(xlim = range(eden_whales$lon), ylim = range(eden_whales$lat)) +
+    scale_x_continuous(breaks = seq(min_lon, max_lon, by = 20)) + # Set x-axis breaks every 20 degrees
+    scale_y_continuous(breaks = seq(min_lat, max_lat, by = 20)) + # Set y-axis breaks every 20 degrees
     theme_minimal() +
     labs(x = "Longitude", y = "Latitude", color = "Whale (PTT)",
-         title = "Whales tagged in Eden, Australia (n = 15)",
-         subtitle = paste0("Tracking duration: ", min(eden_whales$dep_date), " - ", max(eden_whales$end_date))) +
-    theme(plot.subtitle = element_text(face = "italic"), plot.title = element_text(face = "bold"))
+         title = "Whales tagged in Eden, AUS (n = 15)",
+         subtitle = paste0("Tracking duration: ", dep, " - ", end)) +
+    theme(plot.subtitle = element_text(face = "italic", size = 13), plot.title = element_text(face = "bold", size = 15),
+          axis.title.x = element_text(vjust = -0.8), axis.text = element_text(size = 11),
+          axis.title = element_text(size = 13), legend.text = element_text(size = 10), legend.title = element_text(size = 12))
 
 ggsave("whales_tagged_in_Eden.png", width = 10, height = 6, dpi = 300, path = "figures/")
 ```
@@ -435,6 +445,9 @@ evansHead_whales <- whales_all |>
     filter(dep_loc == "Evans Head, Australia") |>
     arrange(PTT, date_time)
 
+dep <- format(evansHead_whales$dep_date[1], "%d/%m/%Y")
+end <- format(evansHead_whales$end_date[1], "%d/%m/%Y")
+
 ggplot() +
     geom_sf(data = world, fill = "grey70", color = NA) +
     geom_path(data = evansHead_whales, aes(x = lon, y = lat, group = PTT, color = PTT)) +
@@ -443,9 +456,11 @@ ggplot() +
     coord_sf(xlim = range(evansHead_whales$lon) + c(-6,2), ylim = range(evansHead_whales$lat) + c(-2,2)) +
     theme_minimal() +
     labs(x = "Longitude", y = "Latitude", color = "Whale (PTT)",
-         title = "Whales tagged in Evans Head, Australia (n = 14)", 
-         subtitle = paste0("Tracking duration: ", min(evansHead_whales$dep_date), " - ", max(evansHead_whales$end_date))) +
-    theme(plot.subtitle = element_text(face = "italic"), plot.title = element_text(face = "bold"))
+         title = "Whales tagged in Evans Head, AUS (n = 14)", 
+         subtitle = paste0("Tracking duration: ", dep, " - ", end)) +
+    theme(plot.subtitle = element_text(face = "italic", size = 13), plot.title = element_text(face = "bold", size = 15),
+          axis.title.x = element_text(vjust = -0.8), axis.text = element_text(size = 11), axis.title = element_text(size = 13),
+          legend.title = element_text(vjust = -1, size = 12), legend.text = element_text(size = 10))
 
 ggsave("whales_tagged_in_EvansHead.png", width = 6, height = 10, dpi = 300, path = "figures/")
 ```
@@ -454,19 +469,31 @@ ggsave("whales_tagged_in_EvansHead.png", width = 6, height = 10, dpi = 300, path
 world <- ne_countries(scale = "medium", returnclass = "sf")
 
 # create a dataframe for all whales tagged in Antarctica
-antartcica_whales <- whales_all |>
+antarctica_whales <- whales_all |>
     filter(dep_loc == "Antarctica") |>
     arrange(PTT, date_time)
 
+min_lon <- floor(min(whales_all$lon) / 10) * 10
+max_lon <- ceiling(max(whales_all$lon) / 10) * 10
+min_lat <- floor(min(whales_all$lat) / 10) * 10
+max_lat <- ceiling(max(whales_all$lat) / 10) * 10
+
+dep <- format(antarctica_whales$dep_date[1], "%d/%m/%Y")
+end <- format(antarctica_whales$end_date[1], "%d/%m/%Y")
+
 ggplot() +
     geom_sf(data = world, fill = "grey70", color = NA) +
-    geom_path(data = antartcica_whales, aes(x = lon, y = lat, group = PTT, color = PTT)) +
-    coord_sf(xlim = range(antartcica_whales$lon) + c(-2,2), ylim = range(antartcica_whales$lat) + c(-2,2)) +
+    geom_path(data = antarctica_whales, aes(x = lon, y = lat, group = PTT, color = PTT)) +
+    coord_sf(xlim = range(antarctica_whales$lon) + c(-2,2), ylim = range(antarctica_whales$lat) + c(-2,2)) +
+    scale_x_continuous(breaks = seq(min_lon, max_lon, by = 10)) + # Set x-axis breaks every 10 degrees
+    scale_y_continuous(breaks = seq(min_lat, max_lat, by = 10)) + # Set y-axis breaks every 10 degrees
     theme_minimal() +
     labs(x = "Longitude", y = "Latitude", color = "Whale (PTT)",
          title = "Whales tagged in Antarctica (n = 14)",
-         subtitle = paste0("Tracking duration: ", min(antartcica_whales$dep_date), " - ", max(antartcica_whales$end_date))) +
-    theme(plot.subtitle = element_text(face = "italic"), plot.title = element_text(face = "bold"))
+         subtitle = paste0("Tracking duration: ", dep, " - ", end)) +
+    theme(plot.subtitle = element_text(face = "italic", size = 13), plot.title = element_text(face = "bold", size = 15),
+          axis.title.x = element_text(vjust = -0.8), axis.text = element_text(size = 11),
+          axis.title = element_text(size = 13), legend.text = element_text(size = 10), legend.title = element_text(size = 12))
 
 ggsave("whales_tagged_in_Antarctica.png", width = 10, height = 6, dpi = 300, path = "figures/")
 
@@ -483,42 +510,53 @@ ggsave("whales_tagged_in_Antarctica.png", width = 10, height = 6, dpi = 300, pat
 world <- ne_countries(scale = "medium", returnclass = "sf")
 
 # create a dataframe for all whales tagged in Sunshine Coast, Australia
-sunshineCoast_whales <- whales_all |>
+sunCoast_whales <- whales_all |>
     filter(dep_loc == "Sunshine Coast, Australia") |>
     arrange(PTT, date_time)
 
+dep <- format(sunCoast_whales$dep_date[1], "%d/%m/%Y")
+end <- format(sunCoast_whales$end_date[1], "%d/%m/%Y")
+
 ggplot() +
     geom_sf(data = world, fill = "grey70", color = NA) +
-    geom_path(data = sunshineCoast_whales, aes(x = lon, y = lat, group = PTT, color = PTT)) +
+    geom_path(data = sunCoast_whales, aes(x = lon, y = lat, group = PTT, color = PTT)) +
     # add a point for Sunshine Coast, Australia location
     geom_point(data = tibble(lon = 153.1, lat = -26.65), aes(x = lon, y = lat), color = "black", size = 3) +
-    coord_sf(xlim = range(sunshineCoast_whales$lon) + c(-6,8), ylim = range(sunshineCoast_whales$lat) + c(-2,2)) +
+    coord_sf(xlim = range(sunCoast_whales$lon) + c(-6,8), ylim = range(sunCoast_whales$lat) + c(-2,2)) +
     theme_minimal() +
     labs(x = "Longitude", y = "Latitude", color = "Whale (PTT)",
-         title = "Whales tagged in Sunshine Coast, Australia (n = 7)",
-         subtitle = paste0("Tracking duration: ", min(sunshineCoast_whales$dep_date), " - ", max(sunshineCoast_whales$end_date))) +
-    theme(plot.subtitle = element_text(face = "italic"), plot.title = element_text(face = "bold"))
+         title = "Whales tagged in Sunshine Coast, AUS (n = 7)",
+         subtitle = paste0("Tracking duration: ", dep, " - ", end)) +
+    theme(plot.subtitle = element_text(face = "italic", size = 13), plot.title = element_text(face = "bold", size = 15),
+          axis.title.x = element_text(vjust = -0.8), axis.text = element_text(size = 11),
+          axis.title = element_text(size = 13), legend.text = element_text(size = 10), legend.title = element_text(size = 12))
 
 ggsave("whales_tagged_in_SunshineCoast.png", width = 6, height = 10, dpi = 300, path = "figures/")
 ```
 
-## Argos location classes
-
 ```{r map of all whales by argos loc class}
-# map of whales by argos loc class
+# Determine the min/max for breaks based on data range, rounded to nearest 20 for cleaner breaks
+min_lon <- floor(min(whales_all$lon) / 20) * 20
+max_lon <- ceiling(max(whales_all$lon) / 20) * 20
+min_lat <- floor(min(whales_all$lat) / 20) * 20
+max_lat <- ceiling(max(whales_all$lat) / 20) * 20
+
 ggplot() +
     geom_sf(data = world, fill = "grey70", color = NA) +
     geom_path(data = whales_all, aes(x = lon, y = lat, group = PTT, color = argos_loc_class)) +
     coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+    scale_x_continuous(breaks = seq(min_lon, max_lon, by = 20)) + # Set x-axis breaks every 20 degrees
+    scale_y_continuous(breaks = seq(min_lat, max_lat, by = 20)) + # Set y-axis breaks every 20 degrees
     theme_minimal() +
     labs(x = "Longitude", y = "Latitude", color = "ARGOS Location Class",
          title = "Movement of Humpback Whales by ARGOS Location Class") +
-    theme(plot.title = element_text(face = "bold"))
+    theme(plot.title = element_text(face = "bold", size = 15), axis.title.x = element_text(vjust = -0.8), axis.text = element_text(size = 11),
+          axis.title = element_text(size = 13), legend.text = element_text(size = 10),
+          legend.title = element_text(size = 12))
 
 ggsave("whales_by_argos_loc_class.png", width = 10, height = 6, dpi = 300, path = "figures/")
 ```
 
-Map all whales according to the stage of their migration movement (`stage` column).
 ```{r map whales by stage}
 world <- ne_countries(scale = "medium", returnclass = "sf")
 whales_all <- whales_all %>% arrange(PTT, date_time)
@@ -527,16 +565,18 @@ ggplot() +
     geom_sf(data = world, fill = "grey70", color = NA) +
     geom_path(data = whales_all, aes(x = lon, y = lat, group = PTT, color = stage)) +
     coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+    scale_x_continuous(breaks = seq(min_lon, max_lon, by = 20)) + # Set x-axis breaks every 20 degrees
+    scale_y_continuous(breaks = seq(min_lat, max_lat, by = 20)) + # Set y-axis breaks every 20 degrees
     theme_minimal() +
     labs(x = "Longitude", y = "Latitude", color = "Stage of Migration Movement",
          title = "Movement of Humpback Whales by Migration Stage") +
-    theme(plot.title = element_text(face = "bold")) +
+    theme(plot.title = element_text(face = "bold", size = 15), axis.title.x = element_text(vjust = -0.8), axis.text = element_text(size = 11),
+          axis.title = element_text(size = 13), legend.text = element_text(size = 10), legend.title = element_text(size = 12)) +
     scale_color_discrete(labels = c("Migrating north (n=1,251)", "Migrating south (n=10,845)", "On feeding grounds (n=5,010)"))
 
 ggsave("whales_by_stage.png", width = 10, height = 6, dpi = 300, path = "figures/")
 ```
 
-Map all whales according to their sex (`sex` column).
 ```{r map whales by sex}
 world <- ne_countries(scale = "medium", returnclass = "sf")
 whales_all <- whales_all %>% arrange(PTT, date_time)
@@ -545,16 +585,18 @@ ggplot() +
     geom_sf(data = world, fill = "grey70", color = NA) +
     geom_path(data = whales_all, aes(x = lon, y = lat, group = PTT, color = sex)) +
     coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+    scale_x_continuous(breaks = seq(min_lon, max_lon, by = 20)) + # Set x-axis breaks every 20 degrees
+    scale_y_continuous(breaks = seq(min_lat, max_lat, by = 20)) + # Set y-axis breaks every 20 degrees
     theme_minimal() +
     labs(x = "Longitude", y = "Latitude", color = "Sex",
          title = "Movement of Humpback Whales by Sex") +
-    theme(plot.title = element_text(face = "bold")) +
+    theme(plot.title = element_text(face = "bold", size = 15), axis.title.x = element_text(vjust = -0.8), axis.text = element_text(size = 11),
+          axis.title = element_text(size = 13), legend.text = element_text(size = 10), legend.title = element_text(size = 12)) +
     scale_color_discrete(labels = c("Female (n = 8,278)", "Male (n = 6,824)", "Unknown (n = 2,004)"))
 
 ggsave("whales_by_sex.png", width = 10, height = 6, dpi = 300, path = "figures/")
 ```
 
-Map all whales according to their deployment year (`dep_year` column).
 ```{r map whales by dep_year}
 world <- ne_countries(scale = "medium", returnclass = "sf")
 whales_all <- whales_all %>% arrange(PTT, date_time)
@@ -563,15 +605,18 @@ ggplot() +
     geom_sf(data = world, fill = "grey70", color = NA) +
     geom_path(data = whales_all, aes(x = lon, y = lat, group = PTT, color = dep_year)) +
     coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+    scale_x_continuous(breaks = seq(min_lon, max_lon, by = 20)) + # Set x-axis breaks every 20 degrees
+    scale_y_continuous(breaks = seq(min_lat, max_lat, by = 20)) + # Set y-axis breaks every 20 degrees
     theme_minimal() +
     labs(x = "Longitude", y = "Latitude", color = "Tag Deployment Year",
          title = "Movement of Humpback Whales by Tag Deployment Year") +
-    theme(plot.title = element_text(face = "bold")) +
+    theme(plot.title = element_text(face = "bold", size = 15), axis.title.x = element_text(vjust = -0.8), axis.text = element_text(size = 11),
+          axis.title = element_text(size = 13), legend.text = element_text(size = 10), legend.title = element_text(size = 12)) +
     scale_color_discrete(labels = c("2008 (n = 7,562)", "2009 (n = 1,251)", "2010 (n = 7,562)"))
 
 ggsave("whales_by_dep_year.png", width = 10, height = 6, dpi = 300, path = "figures/")
 ```
-Map whales according to their movement patterns (`movement` column).
+
 ```{r map whales by movement}
 world <- ne_countries(scale = "medium", returnclass = "sf")
 
@@ -590,10 +635,13 @@ whales_all |>
     geom_sf(data = world, fill = "grey70", color = NA) +
     geom_path(aes(x = lon, y = lat, group = PTT, color = movement_short)) +
     coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+    scale_x_continuous(breaks = seq(min_lon, max_lon, by = 20)) + # Set x-axis breaks every 20 degrees
+    scale_y_continuous(breaks = seq(min_lat, max_lat, by = 20)) + # Set y-axis breaks every 20 degrees
     theme_minimal() +
     labs(x = "Longitude", y = "Latitude", color = "Movement",
          title = "Movement Patterns of Humpback Whales") +
-    theme(plot.title = element_text(face = "bold")) +
+    theme(plot.title = element_text(face = "bold", size = 15), axis.title.x = element_text(vjust = -0.8), axis.text = element_text(size = 11),
+          axis.title = element_text(size = 13), legend.text = element_text(size = 10), legend.title = element_text(size = 12)) +
     scale_color_discrete(labels = c("Feeding (n = 14,094)", "Northward (n = 1,249)", "Other (n = 395)", "Southward (n = 1,368)"))
 
 ggsave("whales_by_movement.png", width = 10, height = 6, dpi = 300, path = "figures/")
@@ -628,11 +676,11 @@ movement_short_count
 # 
 # walk(ptts, function(p) {
 #   d <- whales_all %>% filter(PTT == p)
-#   
+# 
 #   # since dep_date/end_date should be constant per whale, grab the first value
 #   dep <- format(d$dep_date[1], "%d/%m/%Y")
 #   end <- format(d$end_date[1], "%d/%m/%Y")
-#   
+# 
 #   plt <- ggplot() +
 #       geom_sf(data = world, fill = "grey80", color = NA) +
 #       geom_path(data = d, aes(x = lon, y = lat, colour = "red")) +
@@ -641,33 +689,35 @@ movement_short_count
 #       labs(title = paste("Whale PTT:", p), x = "Longitude", y = "Latitude",
 #            subtitle = paste("Tracked:", dep, " - ", end)) +
 #       theme(legend.position = "none")
-#   
+# 
 #   print(plt)
 # })
 ```
 
 ```{r separate map for each whale, with larger lines and full map}
-# ptts <- unique(whales_all$PTT)
-# 
-# walk(ptts, function(p) {
-#   d <- whales_all %>% filter(PTT == p)
-#   
-#   dep <- format(d$dep_date[1], "%d/%m/%Y")
-#   end <- format(d$end_date[1], "%d/%m/%Y")
-#   
-#   plt <- ggplot() +
-#     geom_sf(data = world, fill = "grey70", color = NA) +
-#     geom_path(data = d, aes(x = lon, y = lat), color = "red", linewidth = 1.25) +
-#     coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
-#     theme_minimal() +
-#     labs(
-#       title = paste("Whale PTT:", p),
-#       subtitle = paste("Tracked:", dep, "-", end),
-#       x = "Longitude", y = "Latitude"
-#     )
-#   
-#   print(plt)
-# })
+ptts <- unique(whales_all$PTT)
+
+walk(ptts, function(p) {
+  d <- whales_all %>% filter(PTT == p)
+
+  dep <- format(d$dep_date[1], "%d/%m/%Y")
+  end <- format(d$end_date[1], "%d/%m/%Y")
+
+  plt <- ggplot() +
+    geom_sf(data = world, fill = "grey70", color = NA) +
+    geom_path(data = d, aes(x = lon, y = lat), color = "red", linewidth = 1.25) +
+    coord_sf(xlim = range(whales_all$lon), ylim = range(whales_all$lat)) +
+    theme_minimal() +
+    labs(
+      title = paste("Whale PTT:", p),
+      subtitle = paste("Tracked:", dep, "-", end),
+      x = "Longitude", y = "Latitude"
+    )
+
+  print(plt)
+  
+  ggsave(paste0("whale_", p, ".png"), plot = plt, width = 10, height = 6, dpi = 300, path = "figures/")
+})
 ```
 
 ## Correlation between variables
@@ -680,8 +730,10 @@ ggplot(whales_all, aes(x = dep_loc, fill = init_activity)) +
          title = "Association between Deployment Location and Initial Activity") +
     theme_minimal() +
     # rename fill legend labels
-    scale_x_discrete(labels = c("Antarctica", "Eden, AU", "Evans Head, AU", "Sun. Coast, AU")) +
-    theme(axis.title.x = element_text(vjust = -0.8), plot.title = element_text(face = "bold"))
+    scale_x_discrete(labels = c("Antarctica", "Eden", "Evans Head", "Sun. Coast")) +
+    theme(plot.title = element_text(face = "bold", size = 15), axis.title.x = element_text(vjust = -0.8), axis.text = element_text(size = 11),
+          axis.title = element_text(size = 13), legend.text = element_text(size = 10), legend.title = element_text(size = 12))
+
 ggsave("depLoc_initActivity_correlation.png", width = 10, height = 6, dpi = 300, path = "figures/")
 
 whales_all |>
@@ -694,10 +746,12 @@ whales_all |>
 # check correlation between dep_loc and sex
 ggplot(whales_all, aes(x = dep_loc, fill = sex)) +
     geom_bar(position = "dodge") +
-    labs(x = "Deployment Location", y = "Count", fill = "Sex") +
+    labs(x = "Deployment Location", y = "Count", fill = "Sex", title = "Association between Deployment Location and Sex") +
     theme_minimal() +
-    scale_x_discrete(labels = c("Antarctica", "Eden, AU", "Evans Head, AU", "Sun. Coast, AU")) +
-    scale_fill_discrete(labels = c("Female (n = 8278)", "Male (n = 6824)", "Unknown (n = 2004)"))
+    scale_x_discrete(labels = c("Antarctica", "Eden", "Evans Head", "Sun. Coast")) +
+    scale_fill_discrete(labels = c("Female (n = 8278)", "Male (n = 6824)", "Unknown (n = 2004)")) +
+    theme(plot.title = element_text(face = "bold", size = 15), axis.title.x = element_text(vjust = -0.8), axis.text = element_text(size = 11),
+          axis.title = element_text(size = 13), legend.text = element_text(size = 10), legend.title = element_text(size = 12))
 
 whales_all |>
     mutate(dep_loc = as.numeric(dep_loc),
@@ -728,16 +782,18 @@ ggplot(whales_all, aes(x = dep_loc, fill = stage)) +
     labs(x = "Deployment Location", y = "Count", fill = "Stage of Migration Movement",
          title = "Association between Deployment Location and Migration Movement") +
     theme_minimal() +
-    theme(axis.title.x = element_text(vjust = -0.8), plot.title = element_text(face = "bold")) +
-    scale_x_discrete(labels = c("Antarctica", "Eden, AU", "Evans Head, AU", "Sun. Coast, AU")) +
-    scale_fill_discrete(labels = c("Migrating South (n = 10,845)", "At Feeding Grounds (n = 5010)", "Migrating North (n = 1251)"))
+    scale_x_discrete(labels = c("Antarctica", "Eden", "Evans Head", "Sun. Coast")) +
+    scale_fill_discrete(labels = c("Migrating South (n = 10,845)", "At Feeding Grounds (n = 5,010)", "Migrating North (n = 1,251)")) +
+    theme(plot.title = element_text(face = "bold", size = 14.5), axis.title.x = element_text(vjust = -0.8), axis.text = element_text(size = 11),
+          axis.title = element_text(size = 13), legend.text = element_text(size = 10), legend.title = element_text(size = 12))
+
 ggsave("depLoc_stage_correlation.png", width = 10, height = 6, dpi = 300, path = "figures/")
 
 # 1. create contingency table
-depLoc_stage_table <- table(whales_all$dep_loc, whales_all$stage)
+# depLoc_stage_table <- table(whales_all$dep_loc, whales_all$stage)
 
 # 2. run chi-squared test
-print(chisq.test(depLoc_stage_table))  # p-value < 0.05 = significant association between dep_loc and stage
+# print(chisq.test(depLoc_stage_table))  # p-value < 0.05 = significant association between dep_loc and stage
 ```
 
 ```{r correlation bw sex and stage}
@@ -747,15 +803,17 @@ ggplot(whales_all, aes(x = stage, fill = sex)) +
     labs(x = "Stage of Migration Movement", y = "Count", fill = "Sex",
          title = "Association between Sex and Stage of Migration Movement") +
     theme_minimal() +
-    scale_x_discrete(labels = c("Migrating North\n(n = 1251)", "Migrating South\n(n = 10,845)", "On Feeding Grounds\n(n = 5010)")) +
-    theme(axis.title.x = element_text(vjust = -0.8), plot.title = element_text(face = "bold"))
+    scale_x_discrete(labels = c("Migrating North", "Migrating South", "On Feeding Grounds")) +
+    theme(plot.title = element_text(face = "bold", size = 14.5), axis.title.x = element_text(vjust = -0.8), axis.text = element_text(size = 11),
+          axis.title = element_text(size = 13), legend.text = element_text(size = 10), legend.title = element_text(size = 12))
+
 ggsave("sex_stage_correlation.png", width = 10, height = 6, dpi = 300, path = "figures/")
 
 # 1. create contingency table
-sex_stage_table <- table(whales_all$sex, whales_all$stage)
+# sex_stage_table <- table(whales_all$sex, whales_all$stage)
 
 # 2. run chi-squared test
-print(chisq.test(sex_stage_table))
+# print(chisq.test(sex_stage_table))
 ```
 
 ```{r correlation bw dep_year and dep_loc}
@@ -771,8 +829,9 @@ ggplot(whales_all, aes(x = dep_loc, fill = dep_year)) +
     labs(x = "Deployment Location", y = "Count", fill = "Deployment Year",
          title = "Deployment Year by Deployment Location, 2008-2010") +
     theme_minimal() +
-    scale_x_discrete(labels = c("Antarctica", "Eden, AU", "Evans Head, AU", "Sun. Coast, AU")) +
-    theme(plot.title = element_text(face = "bold"), axis.title.x = element_text(vjust = -0.8)) +
+    scale_x_discrete(labels = c("Antarctica", "Eden", "Evans Head", "Sun. Coast")) +
+    theme(plot.title = element_text(face = "bold", size = 14.5), axis.title.x = element_text(vjust = -0.8), axis.text = element_text(size = 11),
+          axis.title = element_text(size = 13), legend.text = element_text(size = 10), legend.title = element_text(size = 12)) +
     # geom_text(stat = "count", aes(label = after_stat(count)), vjust = -0.8, fontface = "bold") +
     geom_label(stat = "count", aes(label = after_stat(count)), vjust = -0.3, fill = "white", color = "black", label.size = 0.3) +
     ylim(0,9000)
@@ -790,10 +849,10 @@ min(PTT_count$count)  # min number of tracking points for a whale
 ggplot(whales_all, aes(x = PTT)) +
     geom_bar(fill = "steelblue") +
     labs(x = "Whale (PTT)", y = "Number of Tracking Points",
-         title = "Number of Tracking Points for each Humpback Whale", subtitle = "All Whales (n = 50)") +
+         title = "Number of Tracking Points Recorded for each Humpback Whale", subtitle = "All Whales (n = 50)") +
     theme_minimal() +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), plot.title = element_text(face = "bold"),
-          plot.subtitle = element_text(face = "italic"), axis.title.x = element_text(vjust = -1))
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), plot.title = element_text(face = "bold", size = 15),
+          plot.subtitle = element_text(face = "italic", size = 13), axis.title.x = element_text(vjust = -1, size = 13))
 ggsave("tracking_points_all_whales.png", width = 10, height = 6, dpi = 300, path = "figures/")
 
 whales_all |>
@@ -803,10 +862,10 @@ whales_all |>
     ggplot(aes(x = PTT, y = n_points)) +
     geom_col(fill = "steelblue") +
     labs(x = "Whale (PTT)", y = "Number of Tracking Points",
-         title = "Number of Tracking Points for each Humpback Whale", subtitle = "Individuals with > 250 tracking points (n = 19)") +
+         title = "Number of Tracking Points Recorded for each Humpback Whale", subtitle = "Individuals with > 250 tracking points (n = 19)") +
     theme_minimal() +
-    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1), plot.title = element_text(face = "bold"),
-          plot.subtitle = element_text(face = "italic"), axis.title.x = element_text(vjust = -1))
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size=11), plot.title = element_text(face = "bold", size = 15),
+          plot.subtitle = element_text(face = "italic", size = 13), axis.title.x = element_text(vjust = -1, size = 13))
 ggsave("tracking_points_250_plus.png", width = 10, height = 6, dpi = 300, path = "figures/")
 
 whales_all |>
@@ -816,9 +875,10 @@ whales_all |>
     ggplot(aes(x = PTT, y = n_points)) +
     geom_col(fill = "steelblue") +
     labs(x = "Whale (PTT)", y = "Number of Tracking Points",
-         title = "Number of Tracking Points for each Humpback Whales", subtitle = "Individuals with > 500 tracking points (n = 11)") +
+         title = "Number of Tracking Points Recorded for each Humpback Whale", subtitle = "Individuals with > 500 tracking points (n = 11)") +
     theme_minimal() +
-    theme(plot.title = element_text(face = "bold"), plot.subtitle = element_text(face = "italic"), axis.title.x = element_text(vjust = -1))
+    theme(plot.title = element_text(face = "bold", size = 15), plot.subtitle = element_text(face = "italic", size = 13), 
+          axis.title.x = element_text(vjust = -1, size = 13), axis.text = element_text(size = 11), axis.title = element_text(size=13))
 ggsave("tracking_points_500_plus.png", width = 10, height = 6, dpi = 300, path = "figures/")
 
 whales_all |>
@@ -828,9 +888,10 @@ whales_all |>
     ggplot(aes(x = PTT, y = n_points)) +
     geom_col(fill = "steelblue") +
     labs(x = "Whale (PTT)", y = "Number of Tracking Points",
-         title = "Number of Tracking Points for each Humpback Whale", subtitle = "Individuals with > 1000 tracking points (n = 5)") +
+         title = "Number of Tracking Points Recorded for each Humpback Whale", subtitle = "Individuals with > 1000 tracking points (n = 5)") +
     theme_minimal() +
-    theme(plot.title = element_text(face = "bold"), plot.subtitle = element_text(face = "italic"), axis.title.x = element_text(vjust = -1))
+    theme(plot.title = element_text(face = "bold", size = 15), plot.subtitle = element_text(face = "italic", size = 13), 
+          axis.title.x = element_text(vjust = -1, size = 13), axis.text = element_text(size = 11), axis.title = element_text(size=13))
 ggsave("tracking_points_1000_plus.png", width = 10, height = 6, dpi = 300, path = "figures/")
 
 # most whales are tracked briefly!
@@ -854,9 +915,9 @@ ggplot(whale_summary, aes(x = PTT, y = track_dur)) +
   labs(x = "Whale (PTT)", y = "Tracking Duration (days)",
        title = "Tracking Duration for each Humpback Whale") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
-        plot.title = element_text(face = "bold"),
-        axis.title.x = element_text(vjust = -1))
+  theme(plot.title = element_text(face = "bold", size = 15), axis.title.x = element_text(vjust = -1), 
+        axis.text = element_text(size = 11), axis.title = element_text(size=13),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size=10))
 
 ggsave("tracking_duration_per_whale.png", width = 10, height = 6, dpi = 300, path = "figures/")
 ```
@@ -878,8 +939,10 @@ min(whale_summary$track_dur)
 ggplot(whales_all, aes(sex, fill = sex)) +
     geom_bar() +
     theme_minimal() +
-    labs(x = "Sex", y = "Count", title = "Distribution of Humpback Whale Sex") +
-    theme(legend.position = "none", plot.title = element_text(face = "bold")) +
+    labs(x = "Sex", y = "Count", title = "Distribution of Humpback Whale Sex, 2008-2010", fill = "Sex") +
+    theme(plot.title = element_text(face = "bold", size = 15), axis.title.x = element_text(vjust = -1, size = 13), 
+          axis.text = element_text(size = 11), axis.title = element_text(size=13),
+          legend.text = element_text(size = 11), legend.title = element_text(size = 13)) +
     # add a label with the count of each sex in each bar
     geom_label(stat = "count", aes(label = after_stat(count)), vjust = -0.3, fill = "white", color = "black", label.size = 0.3) +
     ylim(0, 9000)
@@ -915,7 +978,9 @@ whales_all |>
     theme_minimal() +
     labs(x = "Movement Pattern", y = "Count", fill = "Sex",
          title = "Movement Patterns of Humpback Whales, 2008-2010") +
-    theme(axis.title.x = element_text(vjust = -1), plot.title = element_text(face = "bold"))
+    theme(plot.title = element_text(face = "bold", size = 15), axis.title.x = element_text(vjust = -1, size = 13), 
+          axis.text = element_text(size = 11), axis.title = element_text(size=13),
+          legend.text = element_text(size = 11), legend.title = element_text(size = 13))
 
 ggsave("whales_by_movement_pattern.png", width = 10, height = 6, dpi = 300, path = "figures/")
 ```
@@ -927,11 +992,13 @@ ggplot(whales_all, aes(dep_loc, fill = dep_loc)) +
     geom_bar() +
     theme_minimal() +
     theme(legend.position = "none") +
-    labs(x = "Deployment Location", y = "Count", title = "Number of Tags Deployed at Each Location, 2008-2010") +
-    theme(plot.title = element_text(face = "bold"), axis.title.x = element_text(vjust = -1)) +
+    labs(x = "Deployment Location", y = "Count", title = "Number of PTT Tags Deployed at Each Location, 2008-2010") +
+    theme(plot.title = element_text(face = "bold", size = 15), axis.title.x = element_text(vjust = -1, size = 13), 
+          axis.text = element_text(size = 11), axis.title = element_text(size=13)) +
     # add a label with the count of each deployment location in each bar
     geom_label(stat = "count", aes(label = after_stat(count)), vjust = -0.3, fill = "white", color = "black", label.size = 0.3) +
-    ylim(0, 9000)
+    ylim(0, 9000) +
+    scale_x_discrete(labels = c("Antarctica", "Eden", "Evans Head", "Sun. Coast"))
 
 ggsave("whales_by_deployment_location.png", width = 10, height = 6, dpi = 300, path = "figures/")
 ```
